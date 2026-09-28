@@ -1,3 +1,15 @@
+
+// ==========================================
+// 🧠 TRADUCTOR DE DESVÍOS DIDÁCTICOS (Español Pedagógico)
+// ==========================================
+const translateDesvio = (code) => {
+  if (code === "ERR_DIRECT") return "Error suma directa (sin unificar base)";
+  if (code === "ERR_PARTIAL") return "Error suma parcial (un solo sumando)";
+  if (code === "ERR_LCD") return "Error cálculo denominador común";
+  if (code === "ERR_SIMP") return "Error simplificación de fracción";
+  if (code === "ERR_COMPARE") return "Error comparación de magnitudes";
+  return "Error general de operación";
+};
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "./firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
@@ -497,6 +509,24 @@ export default function App() {
     { id: 1, timestamp: new Date().toLocaleTimeString("es-AR"), text: "🧭 Sesión iniciada." }
   ]);
 
+  
+  // Persistencia de Estado en Navegador (localStorage)
+  useEffect(() => {
+    if (perfilAlumno.nickname) {
+      const key = `edumision_state_${perfilAlumno.nickname.trim().toLowerCase()}`;
+      localStorage.setItem(key, JSON.stringify({
+        nickname: perfilAlumno.nickname,
+        escuela: perfilAlumno.escuela,
+        curso: perfilAlumno.curso,
+        xpTotal,
+        misionesCompletadas,
+        misionesConError,
+        badgeEarned
+      }));
+    }
+  }, [perfilAlumno.nickname, perfilAlumno.escuela, perfilAlumno.curso, xpTotal, misionesCompletadas, misionesConError, badgeEarned]);
+
+
   const addBitacora = (text) => {
     setBitacora((prev) => [
       { id: Date.now(), timestamp: new Date().toLocaleTimeString("es-AR"), text },
@@ -524,7 +554,24 @@ export default function App() {
       alert("Por favor completa tu Nickname y la Escuela.");
       return;
     }
-    addBitacora(`👤 Perfil registrado: ${perfilAlumno.nickname} (${perfilAlumno.curso} - ${perfilAlumno.escuela})`);
+
+    const key = `edumision_state_${perfilAlumno.nickname.trim().toLowerCase()}`;
+    const savedData = localStorage.getItem(key);
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (parsed.xpTotal !== undefined) setXpTotal(parsed.xpTotal);
+        if (parsed.misionesCompletadas) setMisionesCompletadas(parsed.misionesCompletadas);
+        if (parsed.misionesConError) setMisionesConError(parsed.misionesConError);
+        if (parsed.badgeEarned) setBadgeEarned(parsed.badgeEarned);
+        addBitacora(`👤 Perfil reingresado: ${perfilAlumno.nickname} (XP acumulado: ${parsed.xpTotal || 0}, Misiones completadas: ${parsed.misionesCompletadas ? parsed.misionesCompletadas.join(", ").toUpperCase() : "Ninguna"})`);
+      } catch (err) {
+        addBitacora(`👤 Perfil registrado: ${perfilAlumno.nickname} (${perfilAlumno.curso} - ${perfilAlumno.escuela})`);
+      }
+    } else {
+      addBitacora(`👤 Nuevo perfil registrado: ${perfilAlumno.nickname} (${perfilAlumno.curso} - ${perfilAlumno.escuela})`);
+    }
+
     setFaseGlobal("bienvenida");
   };
 
