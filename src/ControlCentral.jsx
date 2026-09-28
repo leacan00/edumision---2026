@@ -5,6 +5,7 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  deleteDoc,
   addDoc,
   serverTimestamp
 } from "firebase/firestore";
@@ -145,6 +146,23 @@ export default function App() {
     }
   };
 
+  // Eliminar / Deshabilitar alumno ficticio o fallido
+  const handleDeleteStudent = async (alumnoId, studentNick) => {
+    if (!alumnoId || !db) return;
+    const confirm = window.confirm(
+      `¿Seguro que deseas eliminar/deshabilitar el registro de "${studentNick}"?\n\nEsta acción removerá la cuenta del alumno en caso de un ingreso fallido o ficticio.`
+    );
+    if (!confirm) return;
+
+    try {
+      await deleteDoc(doc(db, "alumnos", alumnoId));
+      showToast(`❌ Alumno "${studentNick}" eliminado correctamente.`);
+    } catch (err) {
+      console.error("Error eliminando alumno:", err);
+      alert("No se pudo eliminar el registro del alumno.");
+    }
+  };
+
   // 4. Crear Docente
   const handleCreateDocente = async (e) => {
     e.preventDefault();
@@ -243,15 +261,18 @@ export default function App() {
       </header>
 
       {/* PESTAÑAS PRINCIPALES */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-        <button onClick={() => setActiveTab("vincular")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "vincular" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "vincular" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
-          🔗 Vincular Alumnos ({flotantes.length} Flotantes)
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
+        <button onClick={() => setActiveTab("vincular")} style={{ padding: "10px 18px", borderRadius: "8px", border: activeTab === "vincular" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "vincular" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
+          🔗 Vincular Flotantes ({flotantes.length})
         </button>
-        <button onClick={() => setActiveTab("docentes")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "docentes" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "docentes" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
-          👩‍🏫 Docentes y sus Alumnos ({docentes.length})
+        <button onClick={() => setActiveTab("alumnos")} style={{ padding: "10px 18px", borderRadius: "8px", border: activeTab === "alumnos" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "alumnos" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
+          👥 Todos los Alumnos ({alumnos.length})
         </button>
-        <button onClick={() => setActiveTab("telemetria")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "telemetria" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "telemetria" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
-          📡 Telemetría xAPI en Vivo ({liveLogs.length})
+        <button onClick={() => setActiveTab("docentes")} style={{ padding: "10px 18px", borderRadius: "8px", border: activeTab === "docentes" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "docentes" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
+          👩‍🏫 Docentes y Cursos ({docentes.length})
+        </button>
+        <button onClick={() => setActiveTab("telemetria")} style={{ padding: "10px 18px", borderRadius: "8px", border: activeTab === "telemetria" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "telemetria" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
+          📡 Telemetría en Vivo ({liveLogs.length})
         </button>
       </div>
 
@@ -340,7 +361,107 @@ export default function App() {
         </div>
       )}
 
-      {/* CONTENIDO TAB 2: DOCENTES Y SUS ALUMNOS */}
+            {/* CONTENIDO TAB 2: TODOS LOS ALUMNOS ACTIVOS CON OPCIÓN DE DESHABILITAR / ELIMINAR */}
+      {activeTab === "alumnos" && (
+        <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div>
+              <h3 style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>👥 Registro General de Alumnos Activos ({alumnos.length})</h3>
+              <p style={{ color: "#94a3b8", fontSize: "12px", margin: "4px 0 0 0" }}>
+                Listado detallado de estudiantes registrados en Firestore, su docente asignado y opción para deshabilitar ingresos ficticios o erróneos.
+              </p>
+            </div>
+          </div>
+
+          {alumnos.length === 0 ? (
+            <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "30px" }}>
+              No hay alumnos registrados en el sistema.
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #1e293b", color: "#64748b", textAlign: "left" }}>
+                    <th style={{ padding: "10px" }}>Nickname / ID</th>
+                    <th style={{ padding: "10px" }}>Escuela · Curso</th>
+                    <th style={{ padding: "10px" }}>Docente Vinculado</th>
+                    <th style={{ padding: "10px" }}>XP Total</th>
+                    <th style={{ padding: "10px" }}>Misiones</th>
+                    <th style={{ padding: "10px" }}>Insignia</th>
+                    <th style={{ padding: "10px", textAlign: "center" }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {alumnos.map((al) => {
+                    const docAssigned = docentes.find((d) => d.id === al.docenteId);
+                    return (
+                      <tr key={al.id} style={{ borderBottom: "1px solid #020617" }}>
+                        <td style={{ padding: "10px" }}>
+                          <strong style={{ color: "#f8fafc" }}>{al.nickname || "Sin nombre"}</strong>
+                          <div style={{ fontSize: "10px", color: "#64748b", fontFamily: "monospace" }}>{al.id}</div>
+                        </td>
+                        <td style={{ padding: "10px", color: "#cbd5e1" }}>
+                          {al.escuela || "Sin escuela"} <br />
+                          <span style={{ fontSize: "11px", color: "#64748b" }}>{al.curso || "1° Año"}</span>
+                        </td>
+                        <td style={{ padding: "10px" }}>
+                          {docAssigned ? (
+                            <span style={{ color: "#10b981", fontWeight: "bold" }}>
+                              👩‍🏫 {docAssigned.nombre} ({docAssigned.escuela})
+                            </span>
+                          ) : (
+                            <span style={{ color: "#fb923c", fontStyle: "italic" }}>
+                              ⚡ Flotante (Sin docente)
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: "10px" }}>
+                          <strong style={{ color: "#f59e0b" }}>⚡ {al.xpTotal || 0} XP</strong>
+                        </td>
+                        <td style={{ padding: "10px", color: "#4ade80" }}>
+                          {Array.isArray(al.misionesCompletadas) && al.misionesCompletadas.length > 0
+                            ? al.misionesCompletadas.join(", ").toUpperCase()
+                            : "Ninguna"}
+                        </td>
+                        <td style={{ padding: "10px" }}>
+                          {al.badgeEarned ? (
+                            <span style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", padding: "2px 8px", borderRadius: "4px", fontWeight: "bold", fontSize: "11px" }}>
+                              🏆 Otorgada
+                            </span>
+                          ) : (
+                            <span style={{ color: "#64748b", fontSize: "11px" }}>En proceso</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "10px", textAlign: "center" }}>
+                          <button
+                            onClick={() => handleDeleteStudent(al.id, al.nickname)}
+                            title="Deshabilitar / Eliminar alumno ficticio"
+                            style={{
+                              backgroundColor: "rgba(239, 68, 68, 0.15)",
+                              color: "#ef4444",
+                              border: "1px solid #ef4444",
+                              borderRadius: "6px",
+                              padding: "4px 8px",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "bold"
+                            }}
+                          >
+                            ❌ Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+
+      {/* CONTENIDO TAB 3: DOCENTES Y SUS ALUMNOS */}
       {activeTab === "docentes" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <h3 style={{ color: "#38bdf8", margin: 0 }}>Tarjetas de Docentes y Gestión de Grupos</h3>
