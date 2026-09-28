@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "./firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, setDoc, addDoc, serverTimestamp } from "firebase/firestore";
 
 const styles = {
   alertBadge: {
@@ -699,6 +699,20 @@ function DrawerWithSendButton({ student, onClose }) {
   );
 }
 
+
+// ==========================================
+// 🧠 TRADUCTOR DE DESVÍOS DIDÁCTICOS
+// ==========================================
+const translateDesvio = (code) => {
+  if (code === "ERR_DIRECT") return "Error suma directa (Sin unificar base)";
+  if (code === "ERR_PARTIAL") return "Error suma parcial (Incompleta)";
+  if (code === "ERR_LCD") return "Error cálculo denominador";
+  if (code === "ERR_SIMP") return "Error simplificación";
+  if (code === "ERR_COMPARE") return "Error comparación de magnitudes";
+  if (code === "ERR_GENERIC") return "Desvío general de operación";
+  return code || "Desvío general";
+};
+
 export default function App() {
   const [faseDocente, setFaseDocente] = useState("ingreso"); // 'ingreso', 'panel', 'evaluacion'
   
@@ -722,63 +736,59 @@ export default function App() {
   const [liveLogs, setLiveLogs] = useState([]);
 
   // 🔄 Escuchador en tiempo real de Firestore
+    // 🔄 Escuchador en tiempo real de Firestore para 'alumnos', 'docentes' y 'bitacora_alumnos'
   useEffect(() => {
-    let unsubscribe = () => {};
-    try {
-      const q = query(collection(db, "bitacora_alumnos"), orderBy("fecha", "desc"));
-      unsubscribe = onSnapshot(q, (snapshot) => {
-        const logs = [];
-        snapshot.forEach((doc) => {
-          logs.push({ id: doc.id, ...doc.data() });
+    if (!db) return;
+
+    // 1. Escuchar la colección "alumnos"
+    const unsubAlumnos = onSnapshot(collection(db, "alumnos"), (snapshot) => {
+      const list = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        list.push({
+          alumnoId: docSnap.id,
+          id: docSnap.id,
+          name: data.nickname || "Alumno",
+          nickname: data.nickname || "Alumno",
+          escuela: data.escuela || "Escuela",
+          curso: data.curso || "1° Año",
+          docenteId: data.docenteId || null,
+          xp: data.xpTotal || 0,
+          xpTotal: data.xpTotal || 0,
+          badgeEarned: !!data.badgeEarned,
+          misionesCompletadas: data.misionesCompletadas || [],
+          misionesConError: data.misionesConError || [],
+          statsPorMision: data.statsPorMision || {
+            m1: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+            m2: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+            m3: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+            m4: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null }
+          },
+          missions: {
+            m1: { status: (data.misionesCompletadas || []).includes("m1") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m1?.intentos || 0, helps: data.statsPorMision?.m1?.ayudas || 0, errors: data.statsPorMision?.m1?.errores || 0, lastErrorCode: data.statsPorMision?.m1?.ultimoError },
+            m2: { status: (data.misionesCompletadas || []).includes("m2") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m2?.intentos || 0, helps: data.statsPorMision?.m2?.ayudas || 0, errors: data.statsPorMision?.m2?.errores || 0, lastErrorCode: data.statsPorMision?.m2?.ultimoError },
+            m3: { status: (data.misionesCompletadas || []).includes("m3") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m3?.intentos || 0, helps: data.statsPorMision?.m3?.ayudas || 0, errors: data.statsPorMision?.m3?.errores || 0, lastErrorCode: data.statsPorMision?.m3?.ultimoError },
+            m4: { status: (data.misionesCompletadas || []).includes("m4") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m4?.intentos || 0, helps: data.statsPorMision?.m4?.ayudas || 0, errors: data.statsPorMision?.m4?.errores || 0, lastErrorCode: data.statsPorMision?.m4?.ultimoError }
+          }
         });
-        setLiveLogs(logs);
-
-        // Si hay logs reales de alumnos, los sincronizamos con la lista de la clase
-        if (logs.length > 0) {
-          setStudents((prev) => {
-            const updated = [...prev];
-            logs.forEach((log) => {
-              if (!log.alumno) return;
-              let student = updated.find(s => s.name.toLowerCase().includes(log.alumno.toLowerCase()) || log.alumno.toLowerCase().includes(s.name.toLowerCase()));
-              if (!student) {
-                // Crear alumno nuevo dinámico desde los datos de Firebase
-                student = {
-                  id: Date.now() + Math.random(),
-                  name: log.alumno,
-                  shipName: "Nave " + (log.escuela || "Córdoba"),
-                  uuid: log.id || "uuid-demo",
-                  xp: log.xp || 150,
-                  badgeEarned: (log.xp >= 750),
-                  interestRegistered: true,
-                  helpsRequested: 0,
-                  errorsCount: 0,
-                  justificationQuality: "Master",
-                  missions: {
-                    m1: { status: log.mision === "m1" ? "completado" : "bloqueada", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-                    m2: { status: log.mision === "m2" ? "completado" : "bloqueada", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-                    m3: { status: log.mision === "m3" ? "completado" : "bloqueada", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-                    m4: { status: log.mision === "m4" ? "completado" : "bloqueada", attempts: 1, helps: 0, errors: 0, lastErrorCode: null }
-                  }
-                };
-                updated.unshift(student);
-              } else {
-                if (log.xp && log.xp > student.xp) student.xp = log.xp;
-                if (log.mision) {
-                  student.missions[log.mision] = { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null };
-                }
-              }
-            });
-            return updated;
-          });
-        }
-      }, (err) => {
-        console.error("Firestore error:", err);
       });
-    } catch (e) {
-      console.error("Error al configurar onSnapshot:", e);
-    }
+      if (list.length > 0) setStudents(list);
+    });
 
-    return () => unsubscribe();
+    // 2. Escuchar la colección "bitacora_alumnos"
+    const qBitacora = query(collection(db, "bitacora_alumnos"), orderBy("fecha", "desc"));
+    const unsubBitacora = onSnapshot(qBitacora, (snapshot) => {
+      const logs = [];
+      snapshot.forEach((docSnap) => {
+        logs.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setLiveLogs(logs);
+    });
+
+    return () => {
+      unsubAlumnos();
+      unsubBitacora();
+    };
   }, []);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [teacherMessage, setTeacherMessage] = useState("¡Buen viaje espacial, tripulantes! Lean con atención cada consigna.");
@@ -804,12 +814,25 @@ export default function App() {
     setTimeout(() => setToastMsg(null), 4000);
   };
 
-  const handleGuardarPerfilDocente = (e) => {
+    const handleGuardarPerfilDocente = async (e) => {
     e.preventDefault();
-    if (!perfilDocente.nombre.trim() || !perfilDocente.escuela.trim()) {
-      alert("Por favor completá tu nombre y escuela para ingresar.");
-      return;
+    if (!perfilDocente.nombre || !perfilDocente.escuela) return;
+
+    if (db) {
+      try {
+        await addDoc(collection(db, "docentes"), {
+          nombre: perfilDocente.nombre,
+          escuela: perfilDocente.escuela,
+          curso: perfilDocente.curso || "1° Año",
+          codigoAcceso: Math.floor(100000 + Math.random() * 900000).toString(),
+          activo: true,
+          creadoEn: serverTimestamp()
+        });
+      } catch (err) {
+        console.error("Error guardando docente en Firestore:", err);
+      }
     }
+
     setFaseDocente("panel");
     showToast(`👩‍🏫 Bienvenida ${perfilDocente.nombre} a la Consola de Monitoreo (${perfilDocente.escuela})`);
   };
