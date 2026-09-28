@@ -38,31 +38,30 @@ export default function App() {
   const [docentes, setDocentes] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
   const [liveLogs, setLiveLogs] = useState([]);
-
-  const [activeTab, setActiveTab] = useState("vincular"); // "vincular" | "alumnos" | "docentes" | "telemetria"
   const [toast, setToast] = useState(null);
 
-  // Selector para asignación rápida en pestaña Vincular
+  // Estados para asignación rápida de flotantes
   const [selectedDocenteForAssign, setSelectedDocenteForAssign] = useState("");
-  // Estado local para seleccionar docente individual por alumno flotante
-  const [studentDocSelection, setStudentDocSelection] = useState({});
 
-  // Modal para alta docente
+  // Modal para alta de docentes
   const [showAddDocenteModal, setShowDocenteModal] = useState(false);
   const [newDocenteName, setNewDocenteName] = useState("");
   const [newEscuela, setNewEscuela] = useState("");
   const [newCurso, setNewCurso] = useState("");
+
+  // Modo de filtro opcional (por defecto "todos" para ver todo en la misma página)
+  const [viewFilter, setViewFilter] = useState("todos"); // "todos" | "vincular" | "docentes" | "alumnos" | "telemetria"
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
 
-  // 📡 Suscripciones Únicas a Firestore
+  // 📡 Suscripciones en Tiempo Real a Firestore
   useEffect(() => {
     if (!db) return;
 
-    // 1. Docentes
+    // 1. Suscripción a Docentes
     const unsubDocentes = onSnapshot(collection(db, "docentes"), (snap) => {
       const list = [];
       snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
@@ -72,14 +71,14 @@ export default function App() {
       }
     });
 
-    // 2. Alumnos
+    // 2. Suscripción a Alumnos
     const unsubAlumnos = onSnapshot(collection(db, "alumnos"), (snap) => {
       const list = [];
       snap.forEach((a) => list.push({ id: a.id, ...a.data() }));
       setAlumnos(list);
     });
 
-    // 3. Telemetría bitácora
+    // 3. Suscripción a Bitácora (Telemetría xAPI)
     const unsubBitacora = onSnapshot(collection(db, "bitacora_alumnos"), (snap) => {
       const logs = [];
       snap.forEach((b) => logs.push({ id: b.id, ...b.data() }));
@@ -94,37 +93,31 @@ export default function App() {
     };
   }, []);
 
-  // Derivados
+  // Derivación de alumnos flotantes y asignados por docente
   const flotantes = alumnos.filter((a) => !a.docenteId);
   const getAlumnosDelDocente = (docenteId) =>
     alumnos.filter((a) => a.docenteId === docenteId);
 
   // 1. Asignar alumno flotante a un docente
   const handleAssignStudent = async (alumnoId, targetDocenteId) => {
-    const docId = targetDocenteId || studentDocSelection[alumnoId] || selectedDocenteForAssign;
-    if (!docId) {
-      alert("Por favor seleccioná un docente de la lista para asignar al alumno.");
-      return;
-    }
-    if (!alumnoId || !db) return;
+    const docId = targetDocenteId || selectedDocenteForAssign;
+    if (!alumnoId || !docId || !db) return;
 
     const docTarget = docentes.find((d) => d.id === docId);
     try {
       await updateDoc(doc(db, "alumnos", alumnoId), { docenteId: docId });
-      showToast(
-        `✅ Alumno asignado a ${docTarget ? docTarget.nombre : "Docente"}.`
-      );
+      showToast(`✅ Alumno asignado a ${docTarget ? docTarget.nombre : "Docente"}.`);
     } catch (err) {
       console.error("Error asignando alumno:", err);
       alert("No se pudo asignar el alumno.");
     }
   };
 
-  // 2. Dar de baja del docente (vuelve a flotantes)
+  // 2. Dar de baja del docente (pasa a flotante)
   const handleUnlinkStudent = async (alumnoId, studentNick) => {
     if (!alumnoId || !db) return;
     const confirm = window.confirm(
-      `¿Seguro que querés dar de baja a "${studentNick}" del docente?\n\n(El alumno pasará a la lista de flotantes sin perder su progreso ni su historial).`
+      `¿Seguro que querés dar de baja a "${studentNick}" de su docente?\n\n(El alumno pasará a la lista de flotantes sin perder su progreso ni su historial).`
     );
     if (!confirm) return;
 
@@ -143,20 +136,18 @@ export default function App() {
     const docTarget = docentes.find((d) => d.id === newDocenteId);
     try {
       await updateDoc(doc(db, "alumnos", alumnoId), { docenteId: newDocenteId });
-      showToast(
-        `🔄 "${studentNick}" reasignado a ${docTarget ? docTarget.nombre : "nuevo docente"}.`
-      );
+      showToast(`🔄 "${studentNick}" reasignado a ${docTarget ? docTarget.nombre : "nuevo docente"}.`);
     } catch (err) {
       console.error("Error reasignando alumno:", err);
       alert("No se pudo reasignar el alumno.");
     }
   };
 
-  // 4. Eliminar / Deshabilitar alumno de Firestore (Baja definitiva)
+  // 4. Eliminar/Deshabilitar alumno ficticio o fallido
   const handleDeleteStudent = async (alumnoId, studentNick) => {
     if (!alumnoId || !db) return;
     const confirm = window.confirm(
-      `¿Seguro que querés eliminar/deshabilitar a "${studentNick}" de la plataforma?\n\nEsta acción removerá el registro del alumno en caso de un ingreso ficticio o fallido.`
+      `¿Seguro que deseas eliminar el registro de "${studentNick}"?\n\nEsta acción removerá la cuenta del alumno en caso de un ingreso fallido o ficticio.`
     );
     if (!confirm) return;
 
@@ -165,11 +156,11 @@ export default function App() {
       showToast(`❌ Alumno "${studentNick}" eliminado correctamente.`);
     } catch (err) {
       console.error("Error eliminando alumno:", err);
-      alert("No se pudo eliminar el alumno.");
+      alert("No se pudo eliminar el registro del alumno.");
     }
   };
 
-  // 5. Crear Docente
+  // 5. Crear Docente en Firestore
   const handleCreateDocente = async (e) => {
     e.preventDefault();
     if (!newDocenteName || !newEscuela || !newCurso || !db) return;
@@ -186,12 +177,8 @@ export default function App() {
         creadoEn: serverTimestamp()
       });
 
-      // 🎯 Auto-seleccionar el docente recién creado para asignaciones inmediatas
       setSelectedDocenteForAssign(docRef.id);
-
-      showToast(
-        `👩‍🏫 Docente "${newDocenteName}" creado. Código de acceso: ${codigoAcceso}`
-      );
+      showToast(`👩‍🏫 Docente "${newDocenteName}" creado. Código de acceso: ${codigoAcceso}`);
       setShowDocenteModal(false);
       setNewDocenteName("");
       setNewEscuela("");
@@ -256,7 +243,9 @@ export default function App() {
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "16px", marginBottom: "20px" }}>
         <div>
           <h1 style={{ color: "#38bdf8", margin: 0, fontSize: "24px" }}>🏛️ EduMisión Córdoba · Panel de Control Central</h1>
-          <p style={{ color: "#94a3b8", margin: "4px 0 0 0", fontSize: "13px" }}>Gestión Provincial: Vinculación, Grupos Docentes y Telemetría Firestore en Tiempo Real</p>
+          <p style={{ color: "#94a3b8", margin: "4px 0 0 0", fontSize: "13px" }}>
+            Vista Unificada 360°: Vinculación, Alumnos Designados por Docente, Padrón General y Telemetría Firestore
+          </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={() => setShowDocenteModal(true)} style={{ backgroundColor: "#10b981", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
@@ -268,141 +257,245 @@ export default function App() {
         </div>
       </header>
 
-      {/* PESTAÑAS PRINCIPALES */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
-        <button onClick={() => setActiveTab("vincular")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "vincular" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "vincular" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
-          🔗 Vincular Flotantes ({flotantes.length})
+      {/* BARRA DE BOTONES DE ACCESO RÁPIDO Y FILTRADO */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+        <button
+          onClick={() => setViewFilter("todos")}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "8px",
+            border: viewFilter === "todos" ? "2px solid #38bdf8" : "1px solid #1e293b",
+            backgroundColor: viewFilter === "todos" ? "rgba(56, 189, 248, 0.2)" : "#0f172a",
+            color: "#fff",
+            fontWeight: "bold",
+            cursor: "pointer",
+            fontSize: "13px"
+          }}
+        >
+          👁️ Ver Todo en 1 Página ({alumnos.length} Alumnos · {docentes.length} Docentes)
         </button>
-        <button onClick={() => setActiveTab("alumnos")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "alumnos" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "alumnos" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
-          👥 Todos los Alumnos ({alumnos.length})
+        <button
+          onClick={() => setViewFilter("vincular")}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "8px",
+            border: viewFilter === "vincular" ? "2px solid #fb923c" : "1px solid #1e293b",
+            backgroundColor: viewFilter === "vincular" ? "rgba(251, 146, 60, 0.2)" : "#0f172a",
+            color: "#fff",
+            fontWeight: "bold",
+            cursor: "pointer",
+            fontSize: "13px"
+          }}
+        >
+          ⚡ Solo Flotantes ({flotantes.length})
         </button>
-        <button onClick={() => setActiveTab("docentes")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "docentes" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "docentes" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
-          👩‍🏫 Docentes y sus Alumnos ({docentes.length})
+        <button
+          onClick={() => setViewFilter("docentes")}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "8px",
+            border: viewFilter === "docentes" ? "2px solid #38bdf8" : "1px solid #1e293b",
+            backgroundColor: viewFilter === "docentes" ? "rgba(56, 189, 248, 0.2)" : "#0f172a",
+            color: "#fff",
+            fontWeight: "bold",
+            cursor: "pointer",
+            fontSize: "13px"
+          }}
+        >
+          👩‍🏫 Solo Grupos Docentes ({docentes.length})
         </button>
-        <button onClick={() => setActiveTab("telemetria")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "telemetria" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "telemetria" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
-          📡 Telemetría xAPI en Vivo ({liveLogs.length})
+        <button
+          onClick={() => setViewFilter("alumnos")}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "8px",
+            border: viewFilter === "alumnos" ? "2px solid #10b981" : "1px solid #1e293b",
+            backgroundColor: viewFilter === "alumnos" ? "rgba(16, 185, 129, 0.2)" : "#0f172a",
+            color: "#fff",
+            fontWeight: "bold",
+            cursor: "pointer",
+            fontSize: "13px"
+          }}
+        >
+          👥 Solo Tabla General ({alumnos.length})
+        </button>
+        <button
+          onClick={() => setViewFilter("telemetria")}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "8px",
+            border: viewFilter === "telemetria" ? "2px solid #c084fc" : "1px solid #1e293b",
+            backgroundColor: viewFilter === "telemetria" ? "rgba(192, 132, 252, 0.2)" : "#0f172a",
+            color: "#fff",
+            fontWeight: "bold",
+            cursor: "pointer",
+            fontSize: "13px"
+          }}
+        >
+          📡 Solo Telemetría xAPI ({liveLogs.length})
         </button>
       </div>
 
-      {/* CONTENIDO TAB 1: VINCULAR ALUMNOS FLOTANTES */}
-      {activeTab === "vincular" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "20px" }}>
-          {/* COLUMNA IZQUIERDA: ALUMNOS FLOTANTES */}
-          <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
-            <h3 style={{ color: "#fb923c", margin: "0 0 10px 0", fontSize: "16px" }}>
-              ⚡ Alumnos Flotantes Sin Asignar ({flotantes.length})
-            </h3>
-            <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
-              Seleccioná a qué docente vincular cada alumno y hacé clic en "Asignar".
-            </p>
+      {/* ========================================================================= */}
+      {/* SECCIÓN 1: PANEL DE VINCULACIÓN Y GRUPOS DOCENTES (DOS COLUMNAS) */}
+      {/* ========================================================================= */}
+      {(viewFilter === "todos" || viewFilter === "vincular" || viewFilter === "docentes") && (
+        <div style={{ marginBottom: "30px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "20px" }}>
+            
+            {/* COLUMNA IZQUIERDA: ALUMNOS FLOTANTES SIN DOCENTE */}
+            <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <h3 style={{ color: "#fb923c", margin: 0, fontSize: "16px" }}>
+                  ⚡ Alumnos Flotantes Sin Asignar ({flotantes.length})
+                </h3>
+                <span style={{ fontSize: "11px", backgroundColor: "rgba(251, 146, 60, 0.15)", color: "#fb923c", padding: "2px 8px", borderRadius: "6px", fontWeight: "bold" }}>
+                  Requieren Vinculación
+                </span>
+              </div>
+              <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
+                Alumnos ingresados de forma autónoma. Seleccioná el docente destino para vincularlos a su curso.
+              </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "420px", overflowY: "auto" }}>
-              {flotantes.length === 0 ? (
-                <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "20px" }}>
-                  ¡No hay alumnos flotantes pendientes! Todos están vinculados a un docente.
-                </div>
-              ) : (
-                flotantes.map((a) => {
-                  const currentSelectedDoc = studentDocSelection[a.id] || selectedDocenteForAssign;
-                  return (
-                    <div key={a.id} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: "bold", color: "#f8fafc" }}>{a.nickname || "Alumno"}</div>
-                        <div style={{ color: "#94a3b8", fontSize: "11px" }}>{a.escuela || "Sin escuela"} · {a.curso || "1° Año"}</div>
-                        <div style={{ color: "#38bdf8", fontSize: "11px", marginTop: "2px" }}>
-                          ⚡ <strong>{a.xpTotal || 0} XP</strong> • Misiones: <span style={{ color: "#4ade80" }}>{a.misionesCompletadas?.length || 0}/4</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "420px", overflowY: "auto" }}>
+                {flotantes.length === 0 ? (
+                  <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "20px", border: "1px dashed #1e293b", borderRadius: "8px" }}>
+                    ✨ ¡No hay alumnos flotantes pendientes! Todos los estudiantes están vinculados a un docente.
+                  </div>
+                ) : (
+                  flotantes.map((a) => (
+                    <div key={a.id} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <strong style={{ color: "#f8fafc", fontSize: "14px" }}>{a.nickname || "Alumno"}</strong>
+                          <div style={{ color: "#94a3b8", fontSize: "11px" }}>{a.escuela || "Sin escuela"} · {a.curso || "1° Año"}</div>
+                          <div style={{ color: "#38bdf8", fontSize: "11px", marginTop: "2px" }}>
+                            ⚡ <strong>{a.xpTotal || 0} XP</strong> • Misiones: <span style={{ color: "#4ade80" }}>{a.misionesCompletadas?.length || 0}/4</span>
+                          </div>
                         </div>
+                        <button onClick={() => handleDeleteStudent(a.id, a.nickname)} title="Eliminar ingreso ficticio" style={{ backgroundColor: "transparent", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "10px" }}>
+                          ❌
+                        </button>
                       </div>
 
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end" }}>
-                        <select
-                          value={currentSelectedDoc}
-                          onChange={(e) => setStudentDocSelection({ ...studentDocSelection, [a.id]: e.target.value })}
-                          style={{ padding: "6px", borderRadius: "6px", border: "1px solid #334155", backgroundColor: "#0f172a", color: "#fff", fontSize: "11px", maxWidth: "180px" }}
-                        >
-                          {docentes.length === 0 ? (
-                            <option value="">No hay docentes</option>
-                          ) : (
-                            docentes.map((d) => (
-                              <option key={d.id} value={d.id}>
-                                {d.nombre} ({d.escuela})
-                              </option>
-                            ))
-                          )}
+                      {/* Selector de docente individual por alumno */}
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "4px" }}>
+                        <select defaultValue="" onChange={(e) => { if (e.target.value) handleAssignStudent(a.id, e.target.value); }} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "1px solid #334155", backgroundColor: "#0f172a", color: "#fff", fontSize: "11px" }}>
+                          <option value="" disabled>Seleccionar docente para asignar...</option>
+                          {docentes.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.nombre} — {d.escuela} ({d.curso})
+                            </option>
+                          ))}
                         </select>
-                        <button
-                          onClick={() => handleAssignStudent(a.id, currentSelectedDoc)}
-                          disabled={docentes.length === 0}
-                          style={{ backgroundColor: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}
-                        >
+                        <button onClick={() => handleAssignStudent(a.id, selectedDocenteForAssign)} style={{ backgroundColor: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
                           Asignar ➔
                         </button>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* COLUMNA DERECHA: SELECTOR Y LISTA DEL DOCENTE SELECCIONADO */}
-          <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
-            <h3 style={{ color: "#38bdf8", margin: "0 0 10px 0", fontSize: "16px" }}>
-              🎯 Docente Seleccionado
-            </h3>
-
-            <div style={{ marginBottom: "15px" }}>
-              <label style={{ display: "block", color: "#cbd5e1", fontSize: "12px", marginBottom: "6px" }}>Ver grupo de:</label>
-              <select value={selectedDocenteForAssign} onChange={(e) => setSelectedDocenteForAssign(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", backgroundColor: "#020617", color: "#fff", fontWeight: "bold" }}>
-                {docentes.length === 0 ? (
-                  <option value="">No hay docentes registrados aún</option>
-                ) : (
-                  docentes.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.nombre} — {d.escuela} ({d.curso}) [{getAlumnosDelDocente(d.id).length} Alumnos]
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-
-            <div style={{ backgroundColor: "#020617", padding: "12px", borderRadius: "8px", border: "1px solid #1e293b" }}>
-              <h4 style={{ color: "#cbd5e1", fontSize: "13px", margin: "0 0 10px 0" }}>
-                Alumnos en este grupo ({getAlumnosDelDocente(selectedDocenteForAssign).length}):
-              </h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "280px", overflowY: "auto" }}>
-                {getAlumnosDelDocente(selectedDocenteForAssign).length === 0 ? (
-                  <div style={{ color: "#64748b", fontSize: "12px", fontStyle: "italic" }}>
-                    Aún no hay alumnos asignados a este docente.
-                  </div>
-                ) : (
-                  getAlumnosDelDocente(selectedDocenteForAssign).map((l) => (
-                    <div key={l.id} style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "6px", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <strong style={{ color: "#f8fafc" }}>{l.nickname}</strong>
-                        <span style={{ color: "#38bdf8", fontSize: "11px", marginLeft: "8px" }}>⚡ {l.xpTotal || 0} XP</span>
-                      </div>
-                      <button onClick={() => handleUnlinkStudent(l.id, l.nickname)} style={{ backgroundColor: "transparent", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "11px" }}>
-                        Baja ✖
-                      </button>
                     </div>
                   ))
                 )}
               </div>
             </div>
+
+            {/* COLUMNA DERECHA: DOCENTES Y SUS ALUMNOS DESIGNADOS / ASIGNADOS */}
+            <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <h3 style={{ color: "#38bdf8", margin: 0, fontSize: "16px" }}>
+                  👩‍🏫 Docentes y sus Alumnos Designados ({docentes.length} Cursos)
+                </h3>
+                <span style={{ fontSize: "11px", backgroundColor: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", padding: "2px 8px", borderRadius: "6px", fontWeight: "bold" }}>
+                  Matrícula Activa por Docente
+                </span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "420px", overflowY: "auto" }}>
+                {docentes.length === 0 ? (
+                  <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "20px", border: "1px dashed #1e293b", borderRadius: "8px" }}>
+                    No hay docentes registrados aún. Hacé clic en "➕ Crear / Habilitar Docente" para agregar uno.
+                  </div>
+                ) : (
+                  docentes.map((docItem) => {
+                    const asignados = getAlumnosDelDocente(docItem.id);
+                    return (
+                      <div key={docItem.id} style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "8px", marginBottom: "8px" }}>
+                          <div>
+                            <strong style={{ color: "#38bdf8", fontSize: "14px" }}>👩‍🏫 {docItem.nombre}</strong>
+                            <div style={{ color: "#94a3b8", fontSize: "11px" }}>{docItem.escuela} · {docItem.curso || "1° Año"}</div>
+                          </div>
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            <span style={{ color: "#f59e0b", backgroundColor: "#0f172a", border: "1px solid #f59e0b", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontFamily: "monospace" }}>
+                              Código: {docItem.codigoAcceso || "------"}
+                            </span>
+                            <span style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", padding: "2px 8px", borderRadius: "6px", fontWeight: "bold", fontSize: "11px" }}>
+                              {asignados.length} Alumnos
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Lista de alumnos asignados a este docente */}
+                        <div>
+                          {asignados.length === 0 ? (
+                            <div style={{ color: "#64748b", fontSize: "11px", fontStyle: "italic", padding: "4px 0" }}>
+                              Sin alumnos asignados actualmente.
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                              {asignados.map((al) => (
+                                <div key={al.id} style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "6px", padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <div>
+                                    <strong style={{ color: "#f8fafc", fontSize: "12px" }}>{al.nickname}</strong>
+                                    <span style={{ color: "#38bdf8", fontSize: "11px", marginLeft: "8px" }}>⚡ {al.xpTotal || 0} XP</span>
+                                    {al.badgeEarned && <span style={{ marginLeft: "6px", fontSize: "10px", color: "#f59e0b" }}>🏆 Insignia</span>}
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                                    {/* Menu para reasignar */}
+                                    <select defaultValue="" onChange={(e) => { if (e.target.value) handleReassignStudent(al.id, al.nickname, e.target.value); }} style={{ padding: "2px 4px", borderRadius: "4px", border: "1px solid #334155", backgroundColor: "#020617", color: "#94a3b8", fontSize: "10px" }}>
+                                      <option value="" disabled>Reasignar...</option>
+                                      {docentes.filter((d) => d.id !== docItem.id).map((otherDoc) => (
+                                        <option key={otherDoc.id} value={otherDoc.id}>
+                                          a {otherDoc.nombre} ({otherDoc.escuela})
+                                        </option>
+                                      ))}
+                                    </select>
+
+                                    <button onClick={() => handleUnlinkStudent(al.id, al.nickname)} title="Dar de baja de este docente (pasa a flotante)" style={{ backgroundColor: "transparent", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "10px" }}>
+                                      Baja ✖
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
       )}
 
-      {/* CONTENIDO TAB 2: TODOS LOS ALUMNOS Y BAJA FICTICIA */}
-      {activeTab === "alumnos" && (
-        <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px" }}>
-          <h3 style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>👥 Registro General de Alumnos Activos ({alumnos.length})</h3>
-          <p style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-            Listado completo de estudiantes registrados en Firestore. Podés dar de baja definitiva los registros ficticios o fallidos con la cruz roja.
-          </p>
+      {/* ========================================================================= */}
+      {/* SECCIÓN 2: TABLA GENERAL DE TODOS LOS ALUMNOS ACTIVOS + ELIMINACIÓN */}
+      {/* ========================================================================= */}
+      {(viewFilter === "todos" || viewFilter === "alumnos") && (
+        <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "30px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+            <h3 style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>
+              👥 Matriz Provincial: Todos los Alumnos Registrados ({alumnos.length})
+            </h3>
+            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+              Padrón unificado de estudiantes activos en Firestore
+            </span>
+          </div>
 
-          <div style={{ overflowX: "auto", marginTop: "16px" }}>
+          <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #1e293b", color: "#64748b", textAlign: "left" }}>
@@ -418,8 +511,8 @@ export default function App() {
               <tbody>
                 {alumnos.length === 0 ? (
                   <tr>
-                    <td colSpan="7" style={{ padding: "20px", textAlign: "center", color: "#64748b", fontStyle: "italic" }}>
-                      No hay alumnos registrados aún en Firestore.
+                    <td colSpan="7" style={{ textStyle: "italic", color: "#64748b", padding: "20px", textAlign: "center" }}>
+                      Esperando registro de alumnos en Firestore...
                     </td>
                   </tr>
                 ) : (
@@ -466,7 +559,7 @@ export default function App() {
                         <td style={{ padding: "10px", textAlign: "center" }}>
                           <button
                             onClick={() => handleDeleteStudent(al.id, al.nickname)}
-                            title="Deshabilitar / Eliminar alumno ficticio"
+                            title="Eliminar registro ficticio o fallido de Firestore"
                             style={{
                               backgroundColor: "rgba(239, 68, 68, 0.15)",
                               color: "#ef4444",
@@ -491,96 +584,26 @@ export default function App() {
         </div>
       )}
 
-      {/* CONTENIDO TAB 3: DOCENTES Y SUS ALUMNOS */}
-      {activeTab === "docentes" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <h3 style={{ color: "#38bdf8", margin: 0 }}>Tarjetas de Docentes y Gestión de Grupos</h3>
-          {docentes.length === 0 ? (
-            <div style={{ backgroundColor: "#0f172a", padding: "20px", borderRadius: "12px", color: "#94a3b8", textAlign: "center" }}>
-              No hay docentes creados en Firestore. Hacé clic en "➕ Crear / Habilitar Docente" arriba para agregar uno.
-            </div>
-          ) : (
-            docentes.map((docItem) => {
-              const asignados = getAlumnosDelDocente(docItem.id);
-              return (
-                <div key={docItem.id} style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "10px", marginBottom: "12px" }}>
-                    <div>
-                      <h4 style={{ color: "#38bdf8", margin: 0, fontSize: "16px" }}>👩‍🏫 {docItem.nombre}</h4>
-                      <p style={{ color: "#94a3b8", margin: "2px 0 0 0", fontSize: "12px" }}>
-                        {docItem.escuela} · {docItem.curso || "1° Año"}
-                      </p>
-                    </div>
-                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                      <div style={{ backgroundColor: "#020617", border: "1px solid #f59e0b", padding: "6px 12px", borderRadius: "8px", fontSize: "12px" }}>
-                        <span style={{ color: "#64748b" }}>Código Acceso: </span>
-                        <strong style={{ color: "#f59e0b", fontFamily: "monospace" }}>{docItem.codigoAcceso || "------"}</strong>
-                      </div>
-                      <span style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>
-                        {asignados.length} Alumnos
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Lista de alumnos asignados a este docente */}
-                  <div>
-                    <h5 style={{ color: "#cbd5e1", fontSize: "12px", margin: "0 0 8px 0" }}>Alumnos en este curso:</h5>
-                    {asignados.length === 0 ? (
-                      <div style={{ color: "#64748b", fontSize: "12px", fontStyle: "italic" }}>
-                        Este docente no tiene alumnos asignados actualmente.
-                      </div>
-                    ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
-                        {asignados.map((al) => (
-                          <div key={al.id} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "8px", padding: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <div>
-                                <strong style={{ color: "#f8fafc", fontSize: "13px" }}>{al.nickname}</strong>
-                                <div style={{ fontSize: "11px", color: "#94a3b8" }}>
-                                  ⚡ {al.xpTotal || 0} XP · {al.badgeEarned ? "🏆 Insignia" : "En proceso"}
-                                </div>
-                              </div>
-                              <button onClick={() => handleUnlinkStudent(al.id, al.nickname)} style={{ backgroundColor: "transparent", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "10px" }}>
-                                Dar de baja
-                              </button>
-                            </div>
-
-                            {/* Selector para reasignar a otro docente */}
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                              <span style={{ fontSize: "10px", color: "#64748b" }}>Reasignar:</span>
-                              <select defaultValue="" onChange={(e) => { if (e.target.value) handleReassignStudent(al.id, al.nickname, e.target.value); }} style={{ flex: 1, padding: "4px", borderRadius: "4px", border: "1px solid #334155", backgroundColor: "#0f172a", color: "#fff", fontSize: "11px" }}>
-                                <option value="" disabled>Seleccionar otro docente...</option>
-                                {docentes.filter((d) => d.id !== docItem.id).map((otherDoc) => (
-                                  <option key={otherDoc.id} value={otherDoc.id}>
-                                    {otherDoc.nombre} ({otherDoc.escuela})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-
-      {/* CONTENIDO TAB 4: TELEMETRÍA EN VIVO */}
-      {activeTab === "telemetria" && (
+      {/* ========================================================================= */}
+      {/* SECCIÓN 3: TELEMETRÍA XAPI EN TIEMPO REAL */}
+      {/* ========================================================================= */}
+      {(viewFilter === "todos" || viewFilter === "telemetria") && (
         <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px" }}>
-          <h3 style={{ color: "#38bdf8", marginTop: 0, display: "flex", alignItems: "center", gap: "10px" }}>
+          <h3 style={{ color: "#38bdf8", marginTop: 0, display: "flex", alignItems: "center", gap: "10px", fontSize: "18px" }}>
             📡 Telemetría xAPI Provincial en Tiempo Real
-            <span style={{ fontSize: "12px", backgroundColor: "#10b981", color: "#fff", padding: "2px 8px", borderRadius: "10px" }}>● FIREBASE FIRESTORE CONECTADO</span>
+            <span style={{ fontSize: "11px", backgroundColor: "#10b981", color: "#fff", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
+              ● FIRESTORE CONECTADO
+            </span>
           </h3>
-          <p style={{ color: "#94a3b8", fontSize: "13px" }}>Eventos de aprendizaje recibidos desde los dispositivos de los estudiantes:</p>
+          <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
+            Eventos xAPI recibidos en tiempo real desde la cabina de los estudiantes:
+          </p>
 
-          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "8px", padding: "15px", maxHeight: "420px", overflowY: "auto", fontFamily: "monospace", fontSize: "12px" }}>
+          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "8px", padding: "15px", maxHeight: "350px", overflowY: "auto", fontFamily: "monospace", fontSize: "12px" }}>
             {liveLogs.length === 0 ? (
-              <div style={{ color: "#64748b", fontStyle: "italic" }}>Esperando primeros eventos de alumnos en tiempo real...</div>
+              <div style={{ color: "#64748b", fontStyle: "italic" }}>
+                Esperando primeros eventos de alumnos en tiempo real...
+              </div>
             ) : (
               liveLogs.map((log) => (
                 <div key={log.id} style={{ marginBottom: "8px", borderBottom: "1px dashed #1e293b", paddingBottom: "6px", display: "flex", justifyContent: "space-between" }}>
