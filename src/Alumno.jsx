@@ -1,18 +1,6 @@
-
-// ==========================================
-// 🧠 TRADUCTOR DE DESVÍOS DIDÁCTICOS (Español Pedagógico)
-// ==========================================
-const translateDesvio = (code) => {
-  if (code === "ERR_DIRECT") return "Error suma directa (sin unificar base)";
-  if (code === "ERR_PARTIAL") return "Error suma parcial (un solo sumando)";
-  if (code === "ERR_LCD") return "Error cálculo denominador común";
-  if (code === "ERR_SIMP") return "Error simplificación de fracción";
-  if (code === "ERR_COMPARE") return "Error comparación de magnitudes";
-  return "Error general de operación";
-};
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "./firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 
 // ==========================================
 // 🛠️ MOTOR DE GENERACIÓN MATEMÁTICA Y OPCIONES (M1 - M4)
@@ -446,9 +434,46 @@ const botStyles = {
 // ==========================================
 // 🚀 COMPONENTE PRINCIPAL (APP ALUMNO V7)
 // ==========================================
+
+// ==========================================
+// 🛠️ HELPER SLUG UNIFICADO (MODELO DE DATOS FIRESTORE)
+// ==========================================
+function slug(text) {
+  if (!text) return "";
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
+}
+
+// ==========================================
+// 🛠️ HELPER SLUG Y GENERADOR DE ID DE ALUMNO
+// ==========================================
+function slug(text) {
+  if (!text) return "";
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
+}
+
+function generarAlumnoId(nickname, escuela) {
+  return `${slug(nickname)}__${slug(escuela)}`;
+}
+
 export default function App() {
   // Estado Global del Flujo
-  const [faseGlobal, setFaseGlobal] = useState("ingreso"); // 'ingreso', 'bienvenida', 'juego', 'cierre'
+  const [faseGlobal, setFaseGlobal] = useState("ingreso");
+  // Estado de Identificación y Sincronización en Firestore
+  const [alumnoId, setAlumnoId] = useState(null);
+  const [perfilCargado, setPerfilCargado] = useState(false);
+ // 'ingreso', 'bienvenida', 'juego', 'cierre'
 
   // Cuestionario de Ingreso
   const [perfilAlumno, setPerfilAlumno] = useState({
@@ -475,6 +500,15 @@ export default function App() {
 
   // Estado del Jugador y Puntos
   const [tituloExplorador, setTituloExplorador] = useState("Explorador/a Novato/a");
+  
+  const [docenteId, setDocenteId] = useState(null);
+  const [statsPorMision, setStatsPorMision] = useState({
+    m1: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+    m2: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+    m3: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+    m4: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null }
+  });
+
   const [xpTotal, setXpTotal] = useState(0);
   const [misionesCompletadas, setMisionesCompletadas] = useState([]);
   const [misionesConError, setMisionesConError] = useState([]);
@@ -510,72 +544,157 @@ export default function App() {
   ]);
 
   
-  // Persistencia de Estado en Navegador (localStorage)
-  useEffect(() => {
-    if (perfilAlumno.nickname) {
-      const key = `edumision_state_${perfilAlumno.nickname.trim().toLowerCase()}`;
-      localStorage.setItem(key, JSON.stringify({
-        nickname: perfilAlumno.nickname,
-        escuela: perfilAlumno.escuela,
-        curso: perfilAlumno.curso,
-        xpTotal,
-        misionesCompletadas,
-        misionesConError,
-        badgeEarned
-      }));
-    }
-  }, [perfilAlumno.nickname, perfilAlumno.escuela, perfilAlumno.curso, xpTotal, misionesCompletadas, misionesConError, badgeEarned]);
+    // 📜 Registro xAPI en 'bitacora_alumnos'
+  const addBitacora = (textEvent, esErrorReal = false, tipoErrorCodigo = null, misionOpt = null, xpOpt = null) => {
+    const currentMision = misionOpt !== null ? misionOpt : misionActual;
+    const currentXp = xpOpt !== null ? xpOpt : xpTotal;
+    const currentAlumnoId = alumnoId || (perfilAlumno.nickname && perfilAlumno.escuela ? generarAlumnoId(perfilAlumno.nickname, perfilAlumno.escuela) : null);
 
-
-  const addBitacora = (text) => {
     setBitacora((prev) => [
-      { id: Date.now(), timestamp: new Date().toLocaleTimeString("es-AR"), text },
+      { id: Date.now(), timestamp: new Date().toLocaleTimeString("es-AR"), text: textEvent },
       ...prev
     ]);
-    try {
-      addDoc(collection(db, "bitacora_alumnos"), {
-        alumno: perfilAlumno.nickname || "Alumno Explorador",
-        escuela: perfilAlumno.escuela || "Sin Escuela",
-        curso: perfilAlumno.curso || "1er Año",
-        evento: text,
-        mision: misionActual,
-        xp: xpTotal,
-        fecha: serverTimestamp()
-      }).catch((err) => console.error("Error enviando a Firestore:", err));
-    } catch (e) {
-      console.error("Firestore no inicializado:", e);
+
+    if (db && currentAlumnoId) {
+      try {
+        addDoc(collection(db, "bitacora_alumnos"), {
+          alumnoId: currentAlumnoId,
+          alumno: perfilAlumno.nickname || "Alumno Explorador",
+          escuela: perfilAlumno.escuela || "Sin Escuela",
+          curso: perfilAlumno.curso || "1er Año",
+          mision: currentMision,
+          evento: textEvent,
+          esErrorReal: !!esErrorReal,
+          tipoErrorCodigo: tipoErrorCodigo || null,
+          xp: currentXp,
+          fecha: serverTimestamp()
+        }).catch((err) => console.error("Error enviando a bitacora_alumnos:", err));
+      } catch (e) {
+        console.error("Firestore no disponible:", e);
+      }
     }
   };
 
-  // Cuestionario 1: Guardar Perfil de Ingreso
-  const handleGuardarPerfilIngreso = (e) => {
+
+    // Cuestionario 1: Guardar Perfil y Cargar desde Firestore
+  const handleGuardarPerfilIngreso = async (e) => {
     e.preventDefault();
     if (!perfilAlumno.nickname || !perfilAlumno.escuela) {
       alert("Por favor completa tu Nickname y la Escuela.");
       return;
     }
 
-    const key = `edumision_state_${perfilAlumno.nickname.trim().toLowerCase()}`;
-    const savedData = localStorage.getItem(key);
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.xpTotal !== undefined) setXpTotal(parsed.xpTotal);
-        if (parsed.misionesCompletadas) setMisionesCompletadas(parsed.misionesCompletadas);
-        if (parsed.misionesConError) setMisionesConError(parsed.misionesConError);
-        if (parsed.badgeEarned) setBadgeEarned(parsed.badgeEarned);
-        addBitacora(`👤 Perfil reingresado: ${perfilAlumno.nickname} (XP acumulado: ${parsed.xpTotal || 0}, Misiones completadas: ${parsed.misionesCompletadas ? parsed.misionesCompletadas.join(", ").toUpperCase() : "Ninguna"})`);
-      } catch (err) {
-        addBitacora(`👤 Perfil registrado: ${perfilAlumno.nickname} (${perfilAlumno.curso} - ${perfilAlumno.escuela})`);
-      }
-    } else {
-      addBitacora(`👤 Nuevo perfil registrado: ${perfilAlumno.nickname} (${perfilAlumno.curso} - ${perfilAlumno.escuela})`);
+    if (!db) {
+      alert("No pudimos conectar con la base de datos. Revisá tu internet e intentá de nuevo.");
+      return;
     }
 
-    setFaseGlobal("bienvenida");
+    const aid = generarAlumnoId(perfilAlumno.nickname, perfilAlumno.escuela);
+
+    try {
+      const snap = await getDoc(doc(db, "alumnos", aid));
+
+      if (snap.exists()) {
+        const data = snap.data();
+        const loadedXp = data.xpTotal || 0;
+        const completadas = data.misionesCompletadas || [];
+        const conError = data.misionesConError || [];
+        const badge = !!data.badgeEarned;
+        const quality = data.justificationQuality || null;
+
+        setXpTotal(loadedXp);
+        setMisionesCompletadas(completadas);
+        setMisionesConError(conError);
+        setBadgeEarned(badge);
+        setJustificationQuality(quality);
+
+        // Recalcular título explorador y habilidad
+        const len = completadas.length;
+        if (len === 0) setTituloExplorador("Explorador/a Novato/a");
+        else if (len === 1) setTituloExplorador("Explorador/a de la Base");
+        else if (len === 2) setTituloExplorador("Explorador/a de Válvulas");
+        else if (len === 3) setTituloExplorador("Explorador/a de Órbitas");
+        else if (len >= 4) setTituloExplorador("Explorador/a de Fusión Estelar 🚀");
+
+        if (badge) {
+          setHabilidadDesbloqueada("Visor de Fusión Cuántica 🔮");
+        }
+
+        setAlumnoId(aid);
+        setPerfilCargado(true);
+
+        addBitacora(`👤 Perfil reingresado, XP acumulado: ${loadedXp}`, false, null, "m1", loadedXp);
+      } else {
+        const initialDoc = {
+          nickname: perfilAlumno.nickname,
+          escuela: perfilAlumno.escuela,
+          curso: perfilAlumno.curso || "1er Año",
+          docenteId: null,
+          xpTotal: 0,
+          misionesCompletadas: [],
+          misionesConError: [],
+          badgeEarned: false,
+          justificationQuality: null,
+          statsPorMision: {
+            m1: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+            m2: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+            m3: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+            m4: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null }
+          },
+          creadoEn: serverTimestamp(),
+          actualizadoEn: serverTimestamp()
+        };
+
+        await setDoc(doc(db, "alumnos", aid), initialDoc);
+
+        setXpTotal(0);
+        setMisionesCompletadas([]);
+        setMisionesConError([]);
+        setBadgeEarned(false);
+        setJustificationQuality(null);
+        setTituloExplorador("Explorador/a Novato/a");
+
+        setAlumnoId(aid);
+        setPerfilCargado(true);
+
+        addBitacora(`👤 Nuevo perfil registrado: ${perfilAlumno.nickname} (${perfilAlumno.curso} - ${perfilAlumno.escuela})`, false, null, "m1", 0);
+      }
+
+      setFaseGlobal("bienvenida");
+    } catch (err) {
+      console.error("Error al conectar con Firestore:", err);
+      alert("No pudimos conectar, revisá tu internet e intentá de nuevo.");
+      // NO cambiamos de fase si falla
+    }
   };
 
-  // Cuestionario 2: Envío Final
+  // 📡 Único useEffect para sincronizar progreso a Firestore cuando perfilCargado === true
+  useEffect(() => {
+    if (!perfilCargado || !alumnoId || !db) return;
+
+    const syncProgreso = async () => {
+      try {
+        await setDoc(
+          doc(db, "alumnos", alumnoId),
+          {
+            xpTotal,
+            misionesCompletadas,
+            misionesConError,
+            badgeEarned,
+            justificationQuality,
+            actualizadoEn: serverTimestamp()
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.error("Error actualizando progreso en Firestore:", err);
+      }
+    };
+
+    syncProgreso();
+  }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, justificationQuality]);
+
+
   const handleEnviarEncuestaCierre = (e) => {
     e.preventDefault();
     addBitacora("📜 Cuestionario de Cierre enviado con éxito a Control Central.");
