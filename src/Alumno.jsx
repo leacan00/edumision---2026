@@ -607,6 +607,9 @@ export default function App() {
         setMisionesConError(conError);
         setBadgeEarned(badge);
         setJustificationQuality(quality);
+        if (data.statsPorMision) {
+          setStatsPorMision(data.statsPorMision);
+        }
 
         // Recalcular título explorador y habilidad
         const len = completadas.length;
@@ -682,6 +685,7 @@ export default function App() {
             misionesConError,
             badgeEarned,
             justificationQuality,
+            statsPorMision,
             actualizadoEn: serverTimestamp()
           },
           { merge: true }
@@ -692,7 +696,7 @@ export default function App() {
     };
 
     syncProgreso();
-  }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, justificationQuality]);
+  }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, justificationQuality, statsPorMision]);
 
 
   const handleEnviarEncuestaCierre = (e) => {
@@ -800,11 +804,36 @@ export default function App() {
     setOpcionSeleccionada(opt.value);
     setFeedback(opt);
 
+    // Incremento de intentos y registro de error/ultimoError (CÓDIGO)
+    setStatsPorMision((prev) => {
+      const current = prev[misionActual] || { intentos: 0, errores: 0, ayudas: 0, ultimoError: null };
+      if (opt.correct) {
+        return {
+          ...prev,
+          [misionActual]: {
+            ...current,
+            intentos: current.intentos + 1
+          }
+        };
+      } else {
+        const errCode = opt.errorCode || "ERR_GENERIC";
+        return {
+          ...prev,
+          [misionActual]: {
+            ...current,
+            intentos: current.intentos + 1,
+            errores: current.errores + 1,
+            ultimoError: errCode
+          }
+        };
+      }
+    });
+
     if (opt.correct) {
       setCopilotMood("happy");
       setCopilotMsg("🎉 ¡Excelente deducción! Los cálculos son correctos.");
       setErrorWarning(null);
-      addBitacora(`✅ Acierto en ${misionActual.toUpperCase()}: ${opt.value}`);
+      addBitacora(`✅ Acierto en ${misionActual.toUpperCase()}: ${opt.value}`, false, null);
 
       if (misionActual === "m4" && m4StepIndex === 3) {
         if (opt.justificationType) {
@@ -836,7 +865,7 @@ export default function App() {
       if (!misionesConError.includes(misionActual)) {
         setMisionesConError((prev) => [...prev, misionActual]);
       }
-      addBitacora(`⚠️ Desvío en ${misionActual.toUpperCase()}: ${opt.value}`);
+      addBitacora(`⚠️ Desvío en ${misionActual.toUpperCase()}: ${opt.value}`, true, opt.errorCode || "ERR_GENERIC");
 
       // Re-ordenar opciones para evitar memorización de posición
       setTimeout(() => {
@@ -858,6 +887,18 @@ export default function App() {
   };
 
   const handlePedirPista = () => {
+    // Sumar 1 a ayudas de la misión actual en statsPorMision
+    setStatsPorMision((prev) => {
+      const current = prev[misionActual] || { intentos: 0, errores: 0, ayudas: 0, ultimoError: null };
+      return {
+        ...prev,
+        [misionActual]: {
+          ...current,
+          ayudas: current.ayudas + 1
+        }
+      };
+    });
+
     setCopilotMood("thinking");
     let hint = "Usá lápiz y papel para dibujar las partes del entero.";
     if (misionActual === "m1") hint = "💡 Pista M1: Con el mismo denominador, solo sumá los números de arriba y mantené la misma base.";
@@ -866,7 +907,7 @@ export default function App() {
     if (misionActual === "m4") hint = "💡 Pista M4: Convertí todas las fracciones a doceavos para sumar y comparar la capacidad total.";
 
     setCopilotMsg(hint);
-    addBitacora(`💡 Consultó pista en ${misionActual.toUpperCase()}`);
+    addBitacora(`💡 Consultó pista en ${misionActual.toUpperCase()}`, false, null);
   };
 
   return (
