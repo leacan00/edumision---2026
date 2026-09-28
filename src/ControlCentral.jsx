@@ -1,19 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { db } from "./firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import React, { useState, useEffect } from "react";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  updateDoc,
+  addDoc,
+  serverTimestamp
+} from "firebase/firestore";
 
 // ==========================================
 // 🛠️ HELPER EXPORTADOR A EXCEL / LIBREOFFICE (.CSV NATIVO)
 // ==========================================
-// Utiliza BOM UTF-8 (﻿) y punto y coma (;) como separador oficial
-// para abrir directamente en Excel/LibreOffice sin ventanas de configuración.
 const exportToExcelCSV = (filename, headers, rows) => {
   const bom = "\uFEFF";
-  const csvContent = bom + [
-    headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(";"),
-    ...rows.map(row => row.map(cell => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(";"))
-  ].join("\n");
+  const csvContent =
+    bom +
+    [
+      headers.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(";"),
+      ...rows.map((row) =>
+        row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(";")
+      )
+    ].join("\n");
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -25,205 +33,18 @@ const exportToExcelCSV = (filename, headers, rows) => {
   document.body.removeChild(link);
 };
 
-// ==========================================
-// 🛠️ DATOS SEMILLA DE CONTROL CENTRAL (CC)
-// ==========================================
-const INITIAL_DOCENTES = [
-  { id: "d1", name: "Profe Laura", escuela: "Escuela IPEM 268", curso: "1° Año B", cursoId: "curso-268-1b", alumnosCount: 4 },
-  { id: "d2", name: "Profe Carlos", escuela: "Colegio Manuel Belgrano", curso: "1° Año A", cursoId: "curso-mb-1a", alumnosCount: 3 },
-  { id: "d3", name: "Profe Mariana", escuela: "IPEM 198 Martín Fierro", curso: "1° Año C", cursoId: "curso-198-1c", alumnosCount: 1 }
-];
-
-const INITIAL_UNLINKED = [
-  { uuid: "u-101", nickname: "Nico_Space", edad: "13", curso: "1° B", escuela: "IPEM 268", xp: 100, lastActive: "16:42:10" },
-  { uuid: "u-102", nickname: "Valen_2026", edad: "12", curso: "1° A", escuela: "Manuel Belgrano", xp: 250, lastActive: "16:40:05" },
-  { uuid: "u-103", nickname: "Gabi_R", edad: "13", curso: "1° B", escuela: "IPEM 268", xp: 0, lastActive: "16:38:19" },
-  { uuid: "u-104", nickname: "Lia_Star", edad: "12", curso: "1° C", escuela: "IPEM 198", xp: 450, lastActive: "16:35:00" }
-];
-
-const INITIAL_LINKED = [
-  {
-    uuid: "7a3b2c1d-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
-    nickname: "Martín G.",
-    edad: "13",
-    docenteId: "d1",
-    escuela: "Escuela IPEM 268",
-    curso: "1° Año B",
-    xp: 500,
-    badgeEarned: true,
-    interestFase2: true,
-    helpsCount: 1,
-    errorsCount: 1,
-    justification: "Master",
-    missions: {
-      m1: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null },
-      m2: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null },
-      m3: { status: "completada", attempts: 2, helps: 1, errors: 1, lastError: "ERR_LCD" },
-      m4: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null }
-    }
-  },
-  {
-    uuid: "8b4c3d2e-5f6a-7b8c-9d0e-1f2a3b4c5d6e",
-    nickname: "Sofía V.",
-    edad: "12",
-    docenteId: "d1",
-    escuela: "Escuela IPEM 268",
-    curso: "1° Año B",
-    xp: 250,
-    badgeEarned: false,
-    interestFase2: true,
-    helpsCount: 2,
-    errorsCount: 4,
-    justification: null,
-    missions: {
-      m1: { status: "completada", attempts: 2, helps: 1, errors: 1, lastError: "ERR_DIRECT" },
-      m2: { status: "en_curso", attempts: 3, helps: 1, errors: 3, lastError: "ERR_DIRECT" },
-      m3: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null }
-    }
-  },
-  {
-    uuid: "9c5d4e3f-6a7b-8c9d-0e1f-2a3b4c5d6e7f",
-    nickname: "Facundo S.",
-    edad: "13",
-    docenteId: "d1",
-    escuela: "Escuela IPEM 268",
-    curso: "1° Año B",
-    xp: 450,
-    badgeEarned: false,
-    interestFase2: false,
-    helpsCount: 3,
-    errorsCount: 3,
-    justification: null,
-    missions: {
-      m1: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null },
-      m2: { status: "completada", attempts: 2, helps: 1, errors: 1, lastError: "ERR_PARTIAL" },
-      m3: { status: "completada", attempts: 3, helps: 2, errors: 2, lastError: "ERR_LCD" },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null }
-    }
-  },
-  {
-    uuid: "1d2e3f4a-5b6c-7d8e-9f0a-1b2c3d4e5f6a",
-    nickname: "Valentina R.",
-    edad: "13",
-    docenteId: "d1",
-    escuela: "Escuela IPEM 268",
-    curso: "1° Año B",
-    xp: 500,
-    badgeEarned: true,
-    interestFase2: true,
-    helpsCount: 0,
-    errorsCount: 0,
-    justification: "Master",
-    missions: {
-      m1: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null },
-      m2: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null },
-      m3: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null },
-      m4: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null }
-    }
-  },
-  {
-    uuid: "2e3f4a5b-6c7d-8e9f-0a1b-2c3d4e5f6a7b",
-    nickname: "Tomás B.",
-    edad: "12",
-    docenteId: "d2",
-    escuela: "Colegio Manuel Belgrano",
-    curso: "1° Año A",
-    xp: 100,
-    badgeEarned: false,
-    interestFase2: false,
-    helpsCount: 2,
-    errorsCount: 2,
-    justification: null,
-    missions: {
-      m1: { status: "completada", attempts: 3, helps: 2, errors: 2, lastError: "ERR_PARTIAL" },
-      m2: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null },
-      m3: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null }
-    }
-  },
-  {
-    uuid: "3f4a5b6c-7d8e-9f0a-1b2c-3d4e5f6a7b8c",
-    nickname: "Camila O.",
-    edad: "13",
-    docenteId: "d2",
-    escuela: "Colegio Manuel Belgrano",
-    curso: "1° Año A",
-    xp: 450,
-    badgeEarned: false,
-    interestFase2: true,
-    helpsCount: 1,
-    errorsCount: 3,
-    justification: null,
-    missions: {
-      m1: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null },
-      m2: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null },
-      m3: { status: "completada", attempts: 4, helps: 1, errors: 3, lastError: "ERR_LCD" },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null }
-    }
-  },
-  {
-    uuid: "4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d",
-    nickname: "Bautista L.",
-    edad: "13",
-    docenteId: "d2",
-    escuela: "Colegio Manuel Belgrano",
-    curso: "1° Año A",
-    xp: 500,
-    badgeEarned: true,
-    interestFase2: true,
-    helpsCount: 2,
-    errorsCount: 2,
-    justification: "Intuitive",
-    missions: {
-      m1: { status: "completada", attempts: 2, helps: 1, errors: 1, lastError: "ERR_DIRECT" },
-      m2: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null },
-      m3: { status: "completada", attempts: 2, helps: 1, errors: 1, lastError: "ERR_COMPARE" },
-      m4: { status: "completada", attempts: 1, helps: 0, errors: 0, lastError: null }
-    }
-  },
-  {
-    uuid: "5b6c7d8e-9f0a-1b2c-3d4e-5f6a7b8c9d0e",
-    nickname: "Delfina P.",
-    edad: "12",
-    docenteId: "d3",
-    escuela: "IPEM 198 Martín Fierro",
-    curso: "1° Año C",
-    xp: 0,
-    badgeEarned: false,
-    interestFase2: false,
-    helpsCount: 0,
-    errorsCount: 0,
-    justification: null,
-    missions: {
-      m1: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null },
-      m2: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null },
-      m3: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null }
-    }
-  }
-];
-
-const MOCK_XAPI_LOGS = [
-  { time: "2026-09-10 16:42:10", uuid: "u-101", actor: "Nico_Space", verb: "CONECTÓ", object: "Inicio de sesión autónomo", details: "Ingreso sin vinculación" },
-  { time: "2026-09-10 16:30:15", uuid: "7a3b2c1d-4e5f-6a7b", actor: "Martín G.", verb: "COMPLETÓ", object: "M4_TRAYECTORIA_FINAL", details: "Insignia ganada + 300 XP" },
-  { time: "2026-09-10 16:25:02", uuid: "7a3b2c1d-4e5f-6a7b", actor: "Martín G.", verb: "JUSTIFICÓ", object: "M4_PASO_FINAL", details: "Razonamiento Científico (Master)" },
-  { time: "2026-09-10 16:18:44", uuid: "8b4c3d2e-5f6a-7b8c", actor: "Sofía V.", verb: "CONSULTÓ", object: "REGLAS_MATEMATICAS_M2", details: "Pista solicitada a EduBot" },
-  { time: "2026-09-10 16:15:20", uuid: "8b4c3d2e-5f6a-7b8c", actor: "Sofía V.", verb: "DESVÍO", object: "M2_CARGA_COMBUSTIBLE", details: "ERR_DIRECT (Suma directa)" },
-  { time: "2026-09-10 16:10:00", uuid: "1d2e3f4a-5b6c-7d8e", actor: "Valentina R.", verb: "COMPLETÓ", object: "M4_TRAYECTORIA_FINAL", details: "Insignia ganada sin errores" }
-];
-
 export default function App() {
-  const [docentes, setDocentes] = useState(INITIAL_DOCENTES);
-  const [unlinked, setUnlinked] = useState(INITIAL_UNLINKED);
-  const [linked, setLinked] = useState(INITIAL_LINKED);
-  const [activeTab, setActiveTab] = useState("vincular"); // "vincular" | "metricas" | "excel"
+  const [docentes, setDocentes] = useState([]);
+  const [alumnos, setAlumnos] = useState([]);
+  const [liveLogs, setLiveLogs] = useState([]);
+
+  const [activeTab, setActiveTab] = useState("vincular"); // "vincular" | "docentes" | "telemetria"
   const [toast, setToast] = useState(null);
 
-  // Estados para vinculación rápida
-  const [selectedDocenteForAssign, setSelectedDocenteForAssign] = useState(INITIAL_DOCENTES[0].id);
+  // Selector para asignación rápida en pestaña Vincular
+  const [selectedDocenteForAssign, setSelectedDocenteForAssign] = useState("");
 
-  // Estados para modal de alta docente
+  // Modal para alta docente
   const [showAddDocenteModal, setShowDocenteModal] = useState(false);
   const [newDocenteName, setNewDocenteName] = useState("");
   const [newEscuela, setNewEscuela] = useState("");
@@ -231,1152 +52,429 @@ export default function App() {
 
   const showToast = (msg) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 4000);
   };
 
-  // Telemetría y Detección de Alumnos Flotantes en Tiempo Real desde Firestore
-  const [liveLogs, setLiveLogs] = useState([]);
-
+  // 📡 Suscripciones Únicas a Firestore (sin queries compuestas where+orderBy)
   useEffect(() => {
-    let unsubscribe = () => {};
-    try {
-      const q = query(collection(db, "bitacora_alumnos"), orderBy("fecha", "desc"));
-      unsubscribe = onSnapshot(q, (snapshot) => {
-        const logs = [];
-        snapshot.forEach((doc) => {
-          logs.push({ id: doc.id, ...doc.data() });
-        });
-        setLiveLogs(logs);
+    if (!db) return;
 
-        // Ingesta automática de nuevos alumnos no vinculados
-        if (logs.length > 0) {
-          logs.forEach((log) => {
-            if (log.alumno) {
-              setUnlinked((prev) => {
-                if (prev.some((u) => u.nickname.toLowerCase() === log.alumno.toLowerCase())) return prev;
-                return [
-                  {
-                    uuid: log.id || `u-${Date.now()}`,
-                    nickname: log.alumno,
-                    edad: "12",
-                    curso: log.curso || "1° Año",
-                    escuela: log.escuela || "Escuela Piloto",
-                    xp: log.xp || 150,
-                    lastActive: "En vivo (Firestore)"
-                  },
-                  ...prev
-                ];
-              });
-            }
-          });
-        }
-      }, (err) => console.error("Firestore error:", err));
-    } catch (e) {
-      console.error("Firestore no disponible:", e);
-    }
-    return () => unsubscribe();
+    // 1. Docentes
+    const unsubDocentes = onSnapshot(collection(db, "docentes"), (snap) => {
+      const list = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+      setDocentes(list);
+      if (list.length > 0) {
+        setSelectedDocenteForAssign((prev) => prev || list[0].id);
+      }
+    });
+
+    // 2. Alumnos
+    const unsubAlumnos = onSnapshot(collection(db, "alumnos"), (snap) => {
+      const list = [];
+      snap.forEach((a) => list.push({ id: a.id, ...a.data() }));
+      setAlumnos(list);
+    });
+
+    // 3. Telemetría bitácora
+    const unsubBitacora = onSnapshot(collection(db, "bitacora_alumnos"), (snap) => {
+      const logs = [];
+      snap.forEach((b) => logs.push({ id: b.id, ...b.data() }));
+      logs.sort((a, b) => (b.fecha?.seconds || 0) - (a.fecha?.seconds || 0));
+      setLiveLogs(logs);
+    });
+
+    return () => {
+      unsubDocentes();
+      unsubAlumnos();
+      unsubBitacora();
+    };
   }, []);
 
+  // Derivados
+  const flotantes = alumnos.filter((a) => !a.docenteId);
+  const getAlumnosDelDocente = (docenteId) =>
+    alumnos.filter((a) => a.docenteId === docenteId);
 
+  // 1. Asignar alumno flotante a un docente
+  const handleAssignStudent = async (alumnoId, targetDocenteId) => {
+    const docId = targetDocenteId || selectedDocenteForAssign;
+    if (!alumnoId || !docId || !db) return;
 
-  // 1. Vinculación de Alumno desde Unlinked a Linked
-  const handleAssignStudent = (studentUuid) => {
-    const targetStudent = unlinked.find((s) => s.uuid === studentUuid);
-    const targetDocente = docentes.find((d) => d.id === selectedDocenteForAssign);
-
-    if (!targetStudent || !targetDocente) return;
-
-    // Crear nuevo alumno vinculado
-    const newLinkedStudent = {
-      uuid: targetStudent.uuid,
-      nickname: targetStudent.nickname,
-      edad: targetStudent.edad,
-      docenteId: targetDocente.id,
-      escuela: targetDocente.escuela,
-      curso: targetDocente.curso,
-      xp: targetStudent.xp,
-      badgeEarned: targetStudent.xp >= 500,
-      interestFase2: false,
-      helpsCount: 0,
-      errorsCount: 0,
-      justification: null,
-      missions: {
-        m1: { status: targetStudent.xp >= 100 ? "completada" : "en_curso", attempts: 1, helps: 0, errors: 0, lastError: null },
-        m2: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null },
-        m3: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null },
-        m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastError: null }
-      }
-    };
-
-    setLinked((prev) => [newLinkedStudent, ...prev]);
-    setUnlinked((prev) => prev.filter((s) => s.uuid !== studentUuid));
-    setDocentes((prev) =>
-      prev.map((d) => (d.id === targetDocente.id ? { ...d, alumnosCount: d.alumnosCount + 1 } : d))
-    );
-
-    showToast(`✅ Alumno "${targetStudent.nickname}" vinculado con éxito a ${targetDocente.name} (${targetDocente.curso})`);
-  };
-
-  // 2. Desvincular / Quitar Alumno
-  const handleRemoveLinkedStudent = (studentUuid) => {
-    const target = linked.find((s) => s.uuid === studentUuid);
-    if (!target) return;
-
-    if (window.confirm(`¿Confirmás quitar al alumno "${target.nickname}" de la lista vinculada?`)) {
-      setLinked((prev) => prev.filter((s) => s.uuid !== studentUuid));
-      setDocentes((prev) =>
-        prev.map((d) => (d.id === target.docenteId ? { ...d, alumnosCount: Math.max(0, d.alumnosCount - 1) } : d))
+    const docTarget = docentes.find((d) => d.id === docId);
+    try {
+      await updateDoc(doc(db, "alumnos", alumnoId), { docenteId: docId });
+      showToast(
+        `✅ Alumno asignado a ${docTarget ? docTarget.nombre : "Docente"}.`
       );
-      showToast(`🗑️ Alumno "${target.nickname}" quitado de la matriz.`);
+    } catch (err) {
+      console.error("Error asignando alumno:", err);
+      alert("No se pudo asignar el alumno.");
     }
   };
 
-  // 3. Quitar Docente
-  const handleRemoveDocente = (docenteId) => {
-    const targetDocente = docentes.find((d) => d.id === docenteId);
-    if (!targetDocente) return;
+  // 2. Dar de baja del docente (vuelve a flotantes)
+  const handleUnlinkStudent = async (alumnoId, studentNick) => {
+    if (!alumnoId || !db) return;
+    const confirm = window.confirm(
+      `¿Seguro que querés dar de baja a "${studentNick}" del docente?\n\n(El alumno pasará a la lista de flotantes sin perder su progreso ni su historial).`
+    );
+    if (!confirm) return;
 
-    if (window.confirm(`¿Eliminar al docente ${targetDocente.name} (${targetDocente.escuela})? Los alumnos vinculados pasarán a estado pendiente.`)) {
-      // Mover sus alumnos vinculados de vuelta a unlinked o desvincularlos
-      const studentsToUnlink = linked.filter((s) => s.docenteId === docenteId);
-      const newUnlinked = studentsToUnlink.map((s) => ({
-        uuid: s.uuid,
-        nickname: s.nickname,
-        edad: s.edad,
-        curso: s.curso,
-        escuela: s.escuela,
-        xp: s.xp,
-        lastActive: "Reciente"
-      }));
-
-      setUnlinked((prev) => [...newUnlinked, ...prev]);
-      setLinked((prev) => prev.filter((s) => s.docenteId !== docenteId));
-      setDocentes((prev) => prev.filter((d) => d.id !== docenteId));
-
-      showToast(`🗑️ Docente ${targetDocente.name} eliminado. Alumnos reubicados en cola de espera.`);
+    try {
+      await updateDoc(doc(db, "alumnos", alumnoId), { docenteId: null });
+      showToast(`ℹ️ "${studentNick}" ahora es un alumno flotante.`);
+    } catch (err) {
+      console.error("Error desvinculando alumno:", err);
+      alert("No se pudo desvincular el alumno.");
     }
   };
 
-  // 4. Agregar Docente
-  const handleAddDocenteSubmit = (e) => {
+  // 3. Reasignar a otro docente
+  const handleReassignStudent = async (alumnoId, studentNick, newDocenteId) => {
+    if (!alumnoId || !newDocenteId || !db) return;
+    const docTarget = docentes.find((d) => d.id === newDocenteId);
+    try {
+      await updateDoc(doc(db, "alumnos", alumnoId), { docenteId: newDocenteId });
+      showToast(
+        `🔄 "${studentNick}" reasignado a ${docTarget ? docTarget.nombre : "nuevo docente"}.`
+      );
+    } catch (err) {
+      console.error("Error reasignando alumno:", err);
+      alert("No se pudo reasignar el alumno.");
+    }
+  };
+
+  // 4. Crear Docente
+  const handleCreateDocente = async (e) => {
     e.preventDefault();
-    if (!newDocenteName || !newEscuela || !newCurso) return;
+    if (!newDocenteName || !newEscuela || !newCurso || !db) return;
 
-    const newDoc = {
-      id: `d-${Date.now()}`,
-      name: newDocenteName,
-      escuela: newEscuela,
-      curso: newCurso,
-      cursoId: `curso-${Date.now()}`,
-      alumnosCount: 0
-    };
+    // Código de acceso de 6 dígitos aleatorio
+    const codigoAcceso = Math.floor(100000 + Math.random() * 900000).toString();
 
-    setDocentes((prev) => [...prev, newDoc]);
-    setShowDocenteModal(false);
-    setNewDocenteName("");
-    setNewEscuela("");
-    setNewCurso("");
-    showToast(`✨ Docente ${newDoc.name} habilitado/a para ${newDoc.escuela} (${newDoc.curso})`);
+    try {
+      await addDoc(collection(db, "docentes"), {
+        nombre: newDocenteName,
+        escuela: newEscuela,
+        curso: newCurso,
+        codigoAcceso: codigoAcceso,
+        activo: true,
+        creadoEn: serverTimestamp()
+      });
+
+      showToast(
+        `👩‍🏫 Docente "${newDocenteName}" creado. Código de acceso: ${codigoAcceso}`
+      );
+      setShowDocenteModal(false);
+      setNewDocenteName("");
+      setNewEscuela("");
+      setNewCurso("");
+    } catch (err) {
+      console.error("Error creando docente:", err);
+      alert("No se pudo crear el docente.");
+    }
   };
 
-  // 📊 CÁLCULOS DE MÉTRICAS DEL PILOTÍN PARA CC
-  const totalRoster = linked.length;
-  const m1Completados = linked.filter((s) => s.missions.m1.status === "completada").length;
-  const m2Completados = linked.filter((s) => s.missions.m2.status === "completada").length;
-  const m3Completados = linked.filter((s) => s.missions.m3.status === "completada").length;
-  const m4Completados = linked.filter((s) => s.missions.m4.status === "completada").length;
-
-  const totalInsignias = linked.filter((s) => s.badgeEarned).length;
-  const totalInteresFase2 = linked.filter((s) => s.interestFase2).length;
-
-  const totalDesviosDirect = linked.filter((s) => Object.values(s.missions).some((m) => m.lastError === "ERR_DIRECT")).length;
-  const totalDesviosLcd = linked.filter((s) => Object.values(s.missions).some((m) => m.lastError === "ERR_LCD")).length;
-  const totalDesviosPartial = linked.filter((s) => Object.values(s.missions).some((m) => m.lastError === "ERR_PARTIAL")).length;
-  const totalDesviosCompare = linked.filter((s) => Object.values(s.missions).some((m) => m.lastError === "ERR_COMPARE")).length;
-
-  // 📥 EXPORTACIONES A EXCEL (.CSV FORMATO DIRECTO)
-  const handleExportConsolidadoExcel = () => {
+  // 5. Exportar CSV
+  const handleExportData = () => {
     const headers = [
-      "UUID Alumno",
-      "Nick / Apodo",
-      "Edad",
+      "ID Alumno",
+      "Nickname",
       "Escuela",
       "Curso",
       "Docente Asignado",
+      "Código Acceso Docente",
       "XP Total",
-      "Insignia Acreditada (M4)",
-      "Interés Fase 2 Interdisciplinaria",
-      "Justificación M4",
-      "Consultas EduBot (Pistas)",
-      "Errores Totales",
-      "Estado M1",
-      "Estado M2",
-      "Estado M3",
-      "Estado M4"
+      "Misiones Completadas",
+      "Insignia"
     ];
 
-    const rows = linked.map((s) => {
-      const doc = docentes.find((d) => d.id === s.docenteId);
+    const rows = alumnos.map((a) => {
+      const docAssigned = docentes.find((d) => d.id === a.docenteId);
+      const completadasStr = Array.isArray(a.misionesCompletadas)
+        ? a.misionesCompletadas.join(", ").toUpperCase()
+        : "Ninguna";
+      const insigniaStr = a.badgeEarned ? "Otorgada" : "En proceso";
+
       return [
-        s.uuid,
-        s.nickname,
-        s.edad,
-        s.escuela,
-        s.curso,
-        doc ? doc.name : "Sin Docente",
-        s.xp,
-        s.badgeEarned ? "SÍ (Ingeniero Fusión)" : "NO",
-        s.interestFase2 ? "SÍ (Solicitó Continuar)" : "NO",
-        s.justification === "Master" ? "Científica (Master)" : s.justification === "Intuitive" ? "Intuitiva" : "Sin Justificar",
-        s.helpsCount,
-        s.errorsCount,
-        s.missions.m1.status,
-        s.missions.m2.status,
-        s.missions.m3.status,
-        s.missions.m4.status
+        a.id,
+        a.nickname || "-",
+        a.escuela || "-",
+        a.curso || "-",
+        docAssigned ? docAssigned.nombre : "Flotante (Sin Asignar)",
+        docAssigned ? docAssigned.codigoAcceso || "-" : "-",
+        a.xpTotal || 0,
+        completadasStr,
+        insigniaStr
       ];
     });
 
-    exportToExcelCSV(`EduMision_ControlCentral_Consolidado_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
-    showToast("📊 Reporte Consolidado generado para Excel / LibreOffice.");
-  };
-
-  const handleExportXapiLogsExcel = () => {
-    const headers = ["Fecha / Hora", "UUID Alumno", "Nick / Actor", "Acción / Verbo", "Misión / Objeto", "Detalles / Parámetros"];
-    const rows = MOCK_XAPI_LOGS.map((log) => [
-      log.time,
-      log.uuid,
-      log.actor,
-      log.verb,
-      log.object,
-      log.details
-    ]);
-
-    exportToExcelCSV(`EduMision_Telemetria_xAPI_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
-    showToast("📜 Matriz de Telemetría xAPI exportada a Excel.");
+    exportToExcelCSV(
+      `EduMision_ControlCentral_Reporte_${new Date().toISOString().slice(0, 10)}.csv`,
+      headers,
+      rows
+    );
+    showToast("📊 Reporte CSV exportado con éxito.");
   };
 
   return (
-    <div style={styles.appContainer}>
-      {/* TOAST DE NOTIFICACIONES */}
-      {toast && <div style={styles.toastCard}>{toast}</div>}
-
-      {/* HEADER PRINCIPAL */}
-      <header style={styles.header}>
-        <div style={styles.headerTitleGroup}>
-          <div style={styles.logoBadge}>CC</div>
-          <div>
-            <h1 style={styles.headerTitle}>EduMisión Córdoba — Control Central (CC)</h1>
-            <p style={styles.headerSub}>
-              Gestión de Matrículas, Vinculación Autónoma y Evaluación Integrada del Pilotín
-            </p>
-          </div>
+    <div style={{ backgroundColor: "#030712", color: "#f8fafc", minHeight: "100vh", fontFamily: "sans-serif", padding: "20px" }}>
+      {toast && (
+        <div style={{ position: "fixed", bottom: "20px", right: "20px", backgroundColor: "#0284c7", color: "#fff", padding: "12px 20px", borderRadius: "10px", fontWeight: "bold", zIndex: 1000, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
+          {toast}
         </div>
-        <div style={styles.headerRightInfo}>
-          <span style={styles.serverPill}>🟢 Servidor LRS: /api/lrs En Línea</span>
-          <span style={styles.rolePill}>🕹️ Operador de Control Central</span>
+      )}
+
+      {/* ENCABEZADO CONTROL CENTRAL */}
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "16px", marginBottom: "20px" }}>
+        <div>
+          <h1 style={{ color: "#38bdf8", margin: 0, fontSize: "24px" }}>🏛️ EduMisión Córdoba · Panel de Control Central</h1>
+          <p style={{ color: "#94a3b8", margin: "4px 0 0 0", fontSize: "13px" }}>Gestión Provincial: Vinculación, Grupos Docentes y Telemetría Firestore en Tiempo Real</p>
+        </div>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button onClick={() => setShowDocenteModal(true)} style={{ backgroundColor: "#10b981", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
+            ➕ Crear / Habilitar Docente
+          </button>
+          <button onClick={handleExportData} style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
+            📊 Exportar Reporte CSV
+          </button>
         </div>
       </header>
 
-      {/* PESTAÑAS DE NAVEGACIÓN CC */}
-      <nav style={styles.tabNav}>
-        <button
-          onClick={() => setActiveTab("vincular")}
-          style={activeTab === "vincular" ? styles.tabBtnActive : styles.tabBtnInactive}
-        >
-          🔗 Matrícula y Vinculación ({unlinked.length} Pendientes)
+      {/* PESTAÑAS PRINCIPALES */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+        <button onClick={() => setActiveTab("vincular")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "vincular" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "vincular" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
+          🔗 Vincular Alumnos ({flotantes.length} Flotantes)
         </button>
-        <button
-          onClick={() => setActiveTab("metricas")}
-          style={activeTab === "metricas" ? styles.tabBtnActive : styles.tabBtnInactive}
-        >
-          📊 Evaluación del Pilotín (Métricas CC)
+        <button onClick={() => setActiveTab("docentes")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "docentes" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "docentes" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
+          👩‍🏫 Docentes y sus Alumnos ({docentes.length})
         </button>
-        <button
-          onClick={() => setActiveTab("excel")}
-          style={activeTab === "excel" ? styles.tabBtnActive : styles.tabBtnInactive}
-        >
-          📥 Descargas Excel (.CSV Directo)
+        <button onClick={() => setActiveTab("telemetria")} style={{ padding: "10px 20px", borderRadius: "8px", border: activeTab === "telemetria" ? "2px solid #38bdf8" : "1px solid #1e293b", backgroundColor: activeTab === "telemetria" ? "rgba(56, 189, 248, 0.15)" : "#0f172a", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>
+          📡 Telemetría xAPI en Vivo ({liveLogs.length})
         </button>
-      </nav>
+      </div>
 
-      {/* CONTENIDO 1: MATRÍCULA Y VINCULACIÓN */}
+      {/* CONTENIDO TAB 1: VINCULAR ALUMNOS FLOTANTES */}
       {activeTab === "vincular" && (
-        <div style={styles.tabContent}>
-          <div style={styles.twinGrid}>
-            
-            {/* PANEL IZQUIERDO: ALUMNOS SIN VINCULAR (COLA DE ESPERA) */}
-            <div style={styles.panelCard}>
-              <div style={styles.panelHeader}>
-                <h2 style={styles.panelTitle}>📥 Alumnos Ingresados (Pendientes de Vinculación)</h2>
-                <span style={styles.counterBadge}>{unlinked.length} en espera</span>
-              </div>
-              <p style={styles.panelDesc}>
-                Alumnos que descargaron la app o entraron por el link libre. Al vincularlos con un docente, se reflejan automáticamente en el panel de la escuela.
-              </p>
-
-              {unlinked.length === 0 ? (
-                <div style={styles.emptyState}>
-                  ✨ No hay alumnos pendientes en la cola de ingreso.
-                </div>
-              ) : (
-                <div style={styles.unlinkedList}>
-                  {unlinked.map((st) => (
-                    <div key={st.uuid} style={styles.unlinkedCard}>
-                      <div>
-                        <div style={styles.studentName}>
-                          👤 <strong>{st.nickname}</strong> <span style={styles.edadPill}>{st.edad} años</span>
-                        </div>
-                        <div style={styles.studentDetails}>
-                          Escuela declarada: <strong>{st.escuela}</strong> ({st.curso})<br />
-                          Progreso autónomo: <strong style={{ color: "#38bdf8" }}>{st.xp} XP</strong> · Actividad: {st.lastActive}
-                        </div>
-                      </div>
-
-                      <div style={styles.assignActionGroup}>
-                        <select
-                          value={selectedDocenteForAssign}
-                          onChange={(e) => setSelectedDocenteForAssign(e.target.value)}
-                          style={styles.selectDocente}
-                        >
-                          {docentes.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name} — {d.escuela} ({d.curso})
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleAssignStudent(st.uuid)}
-                          style={styles.btnAssign}
-                        >
-                          ➕ Vincular
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* PANEL DERECHO: DOCENTES Y MATRÍCULA ASIGNADA */}
-            <div style={styles.panelCard}>
-              <div style={styles.panelHeader}>
-                <h2 style={styles.panelTitle}>👩‍🏫 Docentes y Cursos Habilitados</h2>
-                <button
-                  onClick={() => setShowDocenteModal(true)}
-                  style={styles.btnAddDocente}
-                >
-                  ➕ Registrar Nuevo Docente
-                </button>
-              </div>
-              <p style={styles.panelDesc}>
-                Aulas registradas en el sistema. Al eliminar un docente, sus alumnos vuelven a la cola de vinculación.
-              </p>
-
-              <div style={styles.docentesList}>
-                {docentes.map((d) => (
-                  <div key={d.id} style={styles.docenteCard}>
-                    <div style={styles.docenteInfo}>
-                      <div style={styles.docenteName}>👩‍🏫 {d.name}</div>
-                      <div style={styles.docenteSub}>
-                        {d.escuela} · <strong>{d.curso}</strong>
-                      </div>
-                    </div>
-                    <div style={styles.docenteMeta}>
-                      <span style={styles.studentCountPill}>{d.alumnosCount} Alumnos</span>
-                      <button
-                        onClick={() => handleRemoveDocente(d.id)}
-                        style={styles.btnRemoveDocente}
-                        title="Eliminar docente y reubicar alumnos"
-                      >
-                        ❌ Quitar
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* LISTA RESUMIDA DE ALUMNOS VINCULADOS */}
-              <div style={{ marginTop: "24px" }}>
-                <h3 style={{ ...styles.sectionTitle, color: "#4ade80" }}>
-                  📋 Alumnos Vinculados en Matriz ({linked.length})
-                </h3>
-                <div style={styles.linkedTableWrapper}>
-                  <table style={styles.table}>
-                    <thead>
-                      <tr style={styles.tableHeadRow}>
-                        <th style={styles.th}>Nick / Alumno</th>
-                        <th style={styles.th}>Escuela / Curso</th>
-                        <th style={styles.th}>Docente</th>
-                        <th style={styles.th}>XP</th>
-                        <th style={styles.th}>Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {linked.map((s) => {
-                        const doc = docentes.find((d) => d.id === s.docenteId);
-                        return (
-                          <tr key={s.uuid} style={styles.tableRow}>
-                            <td style={styles.td}>
-                              <strong>{s.nickname}</strong>
-                            </td>
-                            <td style={styles.td}>{s.escuela} ({s.curso})</td>
-                            <td style={styles.td}>{doc ? doc.name : "—"}</td>
-                            <td style={styles.td}>
-                              <strong style={{ color: "#38bdf8" }}>{s.xp} XP</strong>
-                            </td>
-                            <td style={styles.td}>
-                              <button
-                                onClick={() => handleRemoveLinkedStudent(s.uuid)}
-                                style={styles.btnRemoveStudent}
-                              >
-                                ❌ Desvincular
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* CONTENIDO 2: MÉTRICAS DE EVALUACIÓN DEL PILOTÍN */}
-      {activeTab === "metricas" && (
-        <div style={styles.tabContent}>
-          <div style={styles.kpiGridCC}>
-            <div style={{ ...styles.kpiCardCC, borderLeft: "4px solid #38bdf8" }}>
-              <div style={styles.kpiLabelCC}>POBLACIÓN DEL PILOTÍN</div>
-              <div style={styles.kpiValueCC}>{totalRoster} Alumnos</div>
-              <div style={styles.kpiSubCC}>{unlinked.length} adicionales en cola de espera</div>
-            </div>
-
-            <div style={{ ...styles.kpiCardCC, borderLeft: "4px solid #10b981" }}>
-              <div style={styles.kpiLabelCC}>TASA DE ACREDITACIÓN (M4)</div>
-              <div style={styles.kpiValueCC}>{totalRoster ? Math.round((totalInsignias / totalRoster) * 100) : 0}%</div>
-              <div style={styles.kpiSubCC}>{totalInsignias} lograron la insignia de Fusión Estelar</div>
-            </div>
-
-            <div style={{ ...styles.kpiCardCC, borderLeft: "4px solid #c084fc" }}>
-              <div style={styles.kpiLabelCC}>INTERÉS FASE 2 INTERDISCIPLINARIA</div>
-              <div style={styles.kpiValueCC}>{totalRoster ? Math.round((totalInteresFase2 / totalRoster) * 100) : 0}%</div>
-              <div style={styles.kpiSubCC}>{totalInteresFase2} solicitaron continuar a "El Día 1"</div>
-            </div>
-          </div>
-
-          <div style={styles.twinGrid}>
-            
-            {/* FUNNEL DE PROGRESIÓN M1 A M4 */}
-            <div style={styles.panelCard}>
-              <h2 style={styles.panelTitle}>📉 Funnel de Progresión y Retención (M1 a M4)</h2>
-              <p style={styles.panelDesc}>
-                Comportamiento de completitud a través del árbol de misiones. Muestra la persistencia del grupo.
-              </p>
-
-              <div style={styles.funnelContainer}>
-                {[
-                  { name: "M1: Radar de Señales", count: m1Completados, xp: "100 XP" },
-                  { name: "M2: Carga de Combustible", count: m2Completados, xp: "150 XP" },
-                  { name: "M3: Empalme de Órbitas", count: m3Completados, xp: "200 XP" },
-                  { name: "M4: Trayectoria Final (Cierre)", count: m4Completados, xp: "250 XP" }
-                ].map((step, idx) => {
-                  const pct = totalRoster ? Math.round((step.count / totalRoster) * 100) : 0;
-                  return (
-                    <div key={idx} style={styles.funnelRow}>
-                      <div style={styles.funnelLabel}>
-                        <strong>{step.name}</strong> <span style={{ color: "#94a3b8" }}>({step.xp})</span>
-                      </div>
-                      <div style={styles.funnelBarBg}>
-                        <div style={{ ...styles.funnelBarFill, width: `${pct}%` }} />
-                      </div>
-                      <div style={styles.funnelStat}>
-                        {step.count}/{totalRoster} ({pct}%)
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* MAPA DE CALOR DE DESVÍOS DIDÁCTICOS */}
-            <div style={styles.panelCard}>
-              <h2 style={styles.panelTitle}>🧩 Distribución de Desvíos Didácticos</h2>
-              <p style={styles.panelDesc}>
-                Conteo de errores diagnosticados por el Sistema Experto sin IA.
-              </p>
-
-              <div style={styles.desviosGrid}>
-                <div style={styles.desvioCard}>
-                  <div style={styles.desvioTitle}>⚠ ERR_DIRECT (Suma Directa)</div>
-                  <div style={styles.desvioCount}>{totalDesviosDirect} Alumnos</div>
-                  <div style={styles.desvioDesc}>Sumaron numeradores y denominadores de forma lineal sin unificar base.</div>
-                </div>
-
-                <div style={styles.desvioCard}>
-                  <div style={styles.desvioTitle}>🧩 ERR_LCD (Denominador Común)</div>
-                  <div style={styles.desvioCount}>{totalDesviosLcd} Alumnos</div>
-                  <div style={styles.desvioDesc}>Dificultad para hallar el mínimo común múltiplo o amplificar numeradores.</div>
-                </div>
-
-                <div style={styles.desvioCard}>
-                  <div style={styles.desvioTitle}>🖐️ ERR_PARTIAL (Suma Incompleta)</div>
-                  <div style={styles.desvioCount}>{totalDesviosPartial} Alumnos</div>
-                  <div style={styles.desvioDesc}>Sumaron solo una de las fracciones expresadas en la ecuación.</div>
-                </div>
-
-                <div style={styles.desvioCard}>
-                  <div style={styles.desvioTitle}>⚖️ ERR_COMPARE (Comparación)</div>
-                  <div style={styles.desvioCount}>{totalDesviosCompare} Alumnos</div>
-                  <div style={styles.desvioDesc}>Compararon magnitudes fraccionarias sin llevarlas a un denominador común.</div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* CONTENIDO 3: CENTRO DE EXPORTACIÓN A EXCEL */}
-      {activeTab === "excel" && (
-        <div style={styles.tabContent}>
-          <div style={styles.panelCard}>
-            <h2 style={styles.panelTitle}>📥 Centro de Exportación de Informes y Datos Crudos (.CSV Excel)</h2>
-            <p style={styles.panelDesc}>
-              Generación de planillas compatibles con Microsoft Excel y LibreOffice. Los archivos incluyen el identificador de ordenamiento `﻿` (UTF-8 BOM) y separador `;` para evitar ventanas de confirmación o caracteres extraños.
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          {/* COLUMNA IZQUIERDA: ALUMNOS FLOTANTES */}
+          <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
+            <h3 style={{ color: "#fb923c", margin: "0 0 10px 0", fontSize: "16px" }}>
+              ⚡ Alumnos Flotantes Sin Asignar ({flotantes.length})
+            </h3>
+            <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
+              Alumnos registrados que aún no tienen un docente asignado. Seleccioná el docente destino a la derecha.
             </p>
 
-            <div style={styles.exportGrid}>
-              
-              <div style={styles.exportBox}>
-                <div style={styles.exportIcon}>📊</div>
-                <h3 style={styles.exportTitle}>Reporte Global Consolidado</h3>
-                <p style={styles.exportDesc}>
-                  Exportación completa del roster de alumnos vinculados, escuelas, docentes asignados, XP acumulado, insignias M4, desvíos y registros de interés en la Fase 2 Interdisciplinaria.
-                </p>
-                <button onClick={handleExportConsolidadoExcel} style={styles.btnExportMain}>
-                  📊 Descargar Consolidado (Excel / CSV)
-                </button>
-              </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "420px", overflowY: "auto" }}>
+              {flotantes.length === 0 ? (
+                <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "20px" }}>
+                  ¡No hay alumnos flotantes pendientes! Todos están vinculados a un docente.
+                </div>
+              ) : (
+                flotantes.map((a) => (
+                  <div key={a.id} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: "bold", color: "#f8fafc" }}>{a.nickname || "Alumno"}</div>
+                      <div style={{ color: "#94a3b8", fontSize: "12px" }}>{a.escuela || "Sin escuela"} · {a.curso || "1° Año"}</div>
+                      <div style={{ color: "#38bdf8", fontSize: "11px", marginTop: "4px" }}>
+                        ⚡ <strong>{a.xpTotal || 0} XP</strong> • Misiones: <span style={{ color: "#4ade80" }}>{a.misionesCompletadas?.length || 0}/4</span>
+                      </div>
+                    </div>
+                    <button onClick={() => handleAssignStudent(a.id, selectedDocenteForAssign)} style={{ backgroundColor: "#0284c7", color: "#fff", border: "none", padding: "8px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" }}>
+                      Asignar ➔
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
 
-              <div style={styles.exportBox}>
-                <div style={styles.exportIcon}>📜</div>
-                <h3 style={styles.exportTitle}>Matriz xAPI / Telemetría Cruda</h3>
-                <p style={styles.exportDesc}>
-                  Historial de eventos en tiempo real anonimizados por UUID (fechas, horas, verbos, misiones, errores e interacciones con el copiloto EduBot).
-                </p>
-                <button onClick={handleExportXapiLogsExcel} style={styles.btnExportSecondary}>
-                  📜 Descargar Telemetría xAPI (Excel / CSV)
-                </button>
-              </div>
+          {/* COLUMNA DERECHA: SELECTOR DE DOCENTE Y ASIGNACIÓN */}
+          <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
+            <h3 style={{ color: "#38bdf8", margin: "0 0 10px 0", fontSize: "16px" }}>
+              🎯 Seleccionar Docente Destino
+            </h3>
 
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", color: "#cbd5e1", fontSize: "12px", marginBottom: "6px" }}>Asignar rápidamente a:</label>
+              <select value={selectedDocenteForAssign} onChange={(e) => setSelectedDocenteForAssign(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", backgroundColor: "#020617", color: "#fff", fontWeight: "bold" }}>
+                {docentes.length === 0 ? (
+                  <option value="">No hay docentes registrados aún</option>
+                ) : (
+                  docentes.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.nombre} — {d.escuela} ({d.curso}) [{getAlumnosDelDocente(d.id).length} Alumnos]
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <div style={{ backgroundColor: "#020617", padding: "12px", borderRadius: "8px", border: "1px solid #1e293b" }}>
+              <h4 style={{ color: "#cbd5e1", fontSize: "13px", margin: "0 0 10px 0" }}>
+                Alumnos asignados al docente seleccionado ({getAlumnosDelDocente(selectedDocenteForAssign).length}):
+              </h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "280px", overflowY: "auto" }}>
+                {getAlumnosDelDocente(selectedDocenteForAssign).length === 0 ? (
+                  <div style={{ color: "#64748b", fontSize: "12px", fontStyle: "italic" }}>
+                    Aún no hay alumnos asignados a este docente.
+                  </div>
+                ) : (
+                  getAlumnosDelDocente(selectedDocenteForAssign).map((l) => (
+                    <div key={l.id} style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "6px", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <strong style={{ color: "#f8fafc" }}>{l.nickname}</strong>
+                        <span style={{ color: "#38bdf8", fontSize: "11px", marginLeft: "8px" }}>{l.xpTotal || 0} XP</span>
+                      </div>
+                      <button onClick={() => handleUnlinkStudent(l.id, l.nickname)} style={{ backgroundColor: "transparent", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "11px" }}>
+                        Baja ✖
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL PARA AGREGAR NUEVO DOCENTE */}
+      {/* CONTENIDO TAB 2: DOCENTES Y SUS ALUMNOS */}
+      {activeTab === "docentes" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <h3 style={{ color: "#38bdf8", margin: 0 }}>Tarjetas de Docentes y Gestión de Grupos</h3>
+          {docentes.length === 0 ? (
+            <div style={{ backgroundColor: "#0f172a", padding: "20px", borderRadius: "12px", color: "#94a3b8", textAlign: "center" }}>
+              No hay docentes creados en Firestore. Hacé clic en "➕ Crear / Habilitar Docente" arriba para agregar uno.
+            </div>
+          ) : (
+            docentes.map((docItem) => {
+              const asignados = getAlumnosDelDocente(docItem.id);
+              return (
+                <div key={docItem.id} style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "10px", marginBottom: "12px" }}>
+                    <div>
+                      <h4 style={{ color: "#38bdf8", margin: 0, fontSize: "16px" }}>👩‍🏫 {docItem.nombre}</h4>
+                      <p style={{ color: "#94a3b8", margin: "2px 0 0 0", fontSize: "12px" }}>
+                        {docItem.escuela} · {docItem.curso || "1° Año"}
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                      <div style={{ backgroundColor: "#020617", border: "1px solid #f59e0b", padding: "6px 12px", borderRadius: "8px", fontSize: "12px" }}>
+                        <span style={{ color: "#64748b" }}>Código Acceso: </span>
+                        <strong style={{ color: "#f59e0b", fontFamily: "monospace" }}>{docItem.codigoAcceso || "------"}</strong>
+                      </div>
+                      <span style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", fontSize: "12px" }}>
+                        {asignados.length} Alumnos
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Lista de alumnos asignados a este docente */}
+                  <div>
+                    <h5 style={{ color: "#cbd5e1", fontSize: "12px", margin: "0 0 8px 0" }}>Alumnos en este curso:</h5>
+                    {asignados.length === 0 ? (
+                      <div style={{ color: "#64748b", fontSize: "12px", fontStyle: "italic" }}>
+                        Este docente no tiene alumnos asignados actualmente.
+                      </div>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
+                        {asignados.map((al) => (
+                          <div key={al.id} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "8px", padding: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <strong style={{ color: "#f8fafc", fontSize: "13px" }}>{al.nickname}</strong>
+                                <div style={{ fontSize: "11px", color: "#94a3b8" }}>
+                                  ⚡ {al.xpTotal || 0} XP · {al.badgeEarned ? "🏆 Insignia" : "En proceso"}
+                                </div>
+                              </div>
+                              <button onClick={() => handleUnlinkStudent(al.id, al.nickname)} style={{ backgroundColor: "transparent", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "10px" }}>
+                                Dar de baja
+                              </button>
+                            </div>
+
+                            {/* Selector para reasignar a otro docente */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ fontSize: "10px", color: "#64748b" }}>Reasignar:</span>
+                              <select defaultValue="" onChange={(e) => { if (e.target.value) handleReassignStudent(al.id, al.nickname, e.target.value); }} style={{ flex: 1, padding: "4px", borderRadius: "4px", border: "1px solid #334155", backgroundColor: "#0f172a", color: "#fff", fontSize: "11px" }}>
+                                <option value="" disabled>Seleccionar otro docente...</option>
+                                {docentes.filter((d) => d.id !== docItem.id).map((otherDoc) => (
+                                  <option key={otherDoc.id} value={otherDoc.id}>
+                                    {otherDoc.nombre} ({otherDoc.escuela})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* CONTENIDO TAB 3: TELEMETRÍA EN VIVO */}
+      {activeTab === "telemetria" && (
+        <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px" }}>
+          <h3 style={{ color: "#38bdf8", marginTop: 0, display: "flex", alignItems: "center", gap: "10px" }}>
+            📡 Telemetría xAPI Provincial en Tiempo Real
+            <span style={{ fontSize: "12px", backgroundColor: "#10b981", color: "#fff", padding: "2px 8px", borderRadius: "10px" }}>● FIREBASE FIRESTORE CONECTADO</span>
+          </h3>
+          <p style={{ color: "#94a3b8", fontSize: "13px" }}>Eventos de aprendizaje recibidos desde los dispositivos de los estudiantes:</p>
+
+          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "8px", padding: "15px", maxHeight: "420px", overflowY: "auto", fontFamily: "monospace", fontSize: "12px" }}>
+            {liveLogs.length === 0 ? (
+              <div style={{ color: "#64748b", fontStyle: "italic" }}>Esperando primeros eventos de alumnos en tiempo real...</div>
+            ) : (
+              liveLogs.map((log) => (
+                <div key={log.id} style={{ marginBottom: "8px", borderBottom: "1px dashed #1e293b", paddingBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                  <div>
+                    <span style={{ color: "#38bdf8", fontWeight: "bold" }}>[{log.alumno || log.alumnoId || "Alumno"}]</span> ({log.escuela || "Córdoba"}): <span style={{ color: "#f8fafc" }}>{log.evento}</span>
+                  </div>
+                  <span style={{ color: "#f59e0b" }}>{log.xp || 0} XP</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CREAR DOCENTE */}
       {showAddDocenteModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalCard}>
-            <h3 style={styles.modalTitle}>👩‍🏫 Registrar Nuevo Docente en Control Central</h3>
-            <form onSubmit={handleAddDocenteSubmit} style={styles.modalForm}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.75)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
+          <div style={{ backgroundColor: "#0f172a", border: "1px solid #38bdf8", borderRadius: "16px", padding: "25px", maxWidth: "450px", width: "100%" }}>
+            <h3 style={{ color: "#38bdf8", marginTop: 0 }}>Habilitar Nuevo Docente / Escuela</h3>
+            <form onSubmit={handleCreateDocente} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <div>
-                <label style={styles.label}>Nombre del Docente / Profesor:</label>
-                <input
-                  type="text"
-                  value={newDocenteName}
-                  onChange={(e) => setNewDocenteName(e.target.value)}
-                  placeholder="Ej: Profe Roberto"
-                  required
-                  style={styles.input}
-                />
+                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>Nombre del Docente:</label>
+                <input type="text" placeholder="Ej: Prof. María Eugenia" value={newDocenteName} onChange={(e) => setNewDocenteName(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", backgroundColor: "#020617", color: "#fff" }} required />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>Escuela / IPEM:</label>
+                <input type="text" placeholder="Ej: IPEM 35 Ricardo Rojas" value={newEscuela} onChange={(e) => setNewEscuela(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", backgroundColor: "#020617", color: "#fff" }} required />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>Curso a cargo:</label>
+                <input type="text" placeholder="Ej: 1° Año B" value={newCurso} onChange={(e) => setNewCurso(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", backgroundColor: "#020617", color: "#fff" }} required />
               </div>
 
-              <div>
-                <label style={styles.label}>Escuela / Institución Educativa:</label>
-                <input
-                  type="text"
-                  value={newEscuela}
-                  onChange={(e) => setNewEscuela(e.target.value)}
-                  placeholder="Ej: IPEM 35 Ricardo Rojas"
-                  required
-                  style={styles.input}
-                />
-              </div>
-
-              <div>
-                <label style={styles.label}>Año y Curso Asignado:</label>
-                <input
-                  type="text"
-                  value={newCurso}
-                  onChange={(e) => setNewCurso(e.target.value)}
-                  placeholder="Ej: 1° Año B"
-                  required
-                  style={styles.input}
-                />
-              </div>
-
-              <div style={styles.modalBtnRow}>
-                <button
-                  type="button"
-                  onClick={() => setShowDocenteModal(false)}
-                  style={styles.btnCancel}
-                >
-                  Cancelar
+              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                <button type="submit" style={{ flex: 1, padding: "10px", borderRadius: "8px", backgroundColor: "#10b981", color: "#fff", border: "none", fontWeight: "bold", cursor: "pointer" }}>
+                  Habilitar
                 </button>
-                <button type="submit" style={styles.btnSave}>
-                  Habilitar Docente
+                <button type="button" onClick={() => setShowDocenteModal(false)} style={{ padding: "10px 15px", borderRadius: "8px", backgroundColor: "transparent", color: "#94a3b8", border: "1px solid #334155", cursor: "pointer" }}>
+                  Cancelar
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }
-
-// ==========================================
-// 🎨 ESTILOS DEL CONTROL CENTRAL
-// ==========================================
-const styles = {
-  appContainer: {
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "20px 15px",
-    fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    backgroundColor: "#020308",
-    color: "#cbd5e1",
-    minHeight: "100vh"
-  },
-  toastCard: {
-    position: "fixed",
-    top: "20px",
-    right: "20px",
-    backgroundColor: "#10b981",
-    color: "#021715",
-    padding: "12px 20px",
-    borderRadius: "8px",
-    fontWeight: "900",
-    fontSize: "13px",
-    boxShadow: "0 0 20px rgba(16, 185, 129, 0.6)",
-    zIndex: 10000
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#080d24",
-    padding: "16px 20px",
-    borderRadius: "12px",
-    border: "1px solid #1e293b",
-    marginBottom: "20px",
-    flexWrap: "wrap",
-    gap: "12px"
-  },
-  headerTitleGroup: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px"
-  },
-  logoBadge: {
-    backgroundColor: "#38bdf8",
-    color: "#020308",
-    fontWeight: "900",
-    fontSize: "18px",
-    padding: "8px 12px",
-    borderRadius: "8px"
-  },
-  headerTitle: {
-    fontSize: "20px",
-    fontWeight: "bold",
-    margin: 0,
-    color: "#ffffff"
-  },
-  headerSub: {
-    fontSize: "12px",
-    color: "#94a3b8",
-    margin: "2px 0 0 0"
-  },
-  headerRightInfo: {
-    display: "flex",
-    gap: "10px",
-    alignItems: "center"
-  },
-  serverPill: {
-    fontSize: "11px",
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
-    color: "#4ade80",
-    border: "1px solid #10b981",
-    padding: "4px 10px",
-    borderRadius: "12px",
-    fontWeight: "bold"
-  },
-  rolePill: {
-    fontSize: "11px",
-    backgroundColor: "rgba(56, 189, 248, 0.15)",
-    color: "#38bdf8",
-    border: "1px solid #38bdf8",
-    padding: "4px 10px",
-    borderRadius: "12px",
-    fontWeight: "bold"
-  },
-  tabNav: {
-    display: "flex",
-    gap: "10px",
-    marginBottom: "20px",
-    borderBottom: "1px solid #1e293b",
-    paddingBottom: "10px"
-  },
-  tabBtnActive: {
-    backgroundColor: "#1e3a8a",
-    color: "#38bdf8",
-    border: "1px solid #38bdf8",
-    padding: "10px 18px",
-    borderRadius: "8px",
-    fontWeight: "bold",
-    fontSize: "13px",
-    cursor: "pointer"
-  },
-  tabBtnInactive: {
-    backgroundColor: "transparent",
-    color: "#64748b",
-    border: "1px solid #1e293b",
-    padding: "10px 18px",
-    borderRadius: "8px",
-    fontWeight: "bold",
-    fontSize: "13px",
-    cursor: "pointer"
-  },
-  tabContent: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px"
-  },
-  twinGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "20px"
-  },
-  panelCard: {
-    backgroundColor: "rgba(7, 12, 34, 0.8)",
-    border: "1px solid #1e293b",
-    borderRadius: "12px",
-    padding: "20px"
-  },
-  panelHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "6px"
-  },
-  panelTitle: {
-    fontSize: "15px",
-    color: "#38bdf8",
-    fontWeight: "bold",
-    margin: 0
-  },
-  counterBadge: {
-    fontSize: "11px",
-    backgroundColor: "rgba(251, 146, 60, 0.15)",
-    color: "#fb923c",
-    border: "1px solid #fb923c",
-    padding: "2px 8px",
-    borderRadius: "10px",
-    fontWeight: "bold"
-  },
-  panelDesc: {
-    fontSize: "12px",
-    color: "#94a3b8",
-    lineHeight: "1.4",
-    marginBottom: "16px"
-  },
-  emptyState: {
-    backgroundColor: "#02040e",
-    border: "1px dashed #1e293b",
-    padding: "20px",
-    borderRadius: "8px",
-    textAlign: "center",
-    color: "#64748b",
-    fontSize: "13px"
-  },
-  unlinkedList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px"
-  },
-  unlinkedCard: {
-    backgroundColor: "#02040e",
-    border: "1px solid #1e293b",
-    borderRadius: "8px",
-    padding: "12px 14px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px"
-  },
-  studentName: {
-    fontSize: "14px",
-    color: "#ffffff"
-  },
-  edadPill: {
-    fontSize: "10px",
-    backgroundColor: "#1e293b",
-    color: "#94a3b8",
-    padding: "2px 6px",
-    borderRadius: "4px",
-    marginLeft: "6px"
-  },
-  studentDetails: {
-    fontSize: "11px",
-    color: "#94a3b8",
-    marginTop: "4px"
-  },
-  assignActionGroup: {
-    display: "flex",
-    gap: "8px",
-    alignItems: "center"
-  },
-  selectDocente: {
-    flex: 1,
-    padding: "8px",
-    backgroundColor: "#080d24",
-    border: "1px solid #334155",
-    color: "#cbd5e1",
-    borderRadius: "6px",
-    fontSize: "11px"
-  },
-  btnAssign: {
-    backgroundColor: "#10b981",
-    color: "#ffffff",
-    border: "none",
-    padding: "8px 14px",
-    borderRadius: "6px",
-    fontWeight: "bold",
-    fontSize: "11px",
-    cursor: "pointer"
-  },
-  btnAddDocente: {
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
-    color: "#c084fc",
-    border: "1px solid #8b5cf6",
-    padding: "6px 12px",
-    borderRadius: "6px",
-    fontWeight: "bold",
-    fontSize: "11px",
-    cursor: "pointer"
-  },
-  docentesList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px"
-  },
-  docenteCard: {
-    backgroundColor: "#02040e",
-    border: "1px solid #1e293b",
-    borderRadius: "8px",
-    padding: "12px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-  docenteInfo: {},
-  docenteName: {
-    fontSize: "13px",
-    fontWeight: "bold",
-    color: "#ffffff"
-  },
-  docenteSub: {
-    fontSize: "11px",
-    color: "#94a3b8"
-  },
-  docenteMeta: {
-    display: "flex",
-    gap: "8px",
-    alignItems: "center"
-  },
-  studentCountPill: {
-    fontSize: "11px",
-    backgroundColor: "#1e293b",
-    color: "#38bdf8",
-    padding: "3px 8px",
-    borderRadius: "6px",
-    fontWeight: "bold"
-  },
-  btnRemoveDocente: {
-    backgroundColor: "rgba(239, 68, 68, 0.15)",
-    color: "#fca5a5",
-    border: "1px solid #ef4444",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    fontSize: "10px",
-    fontWeight: "bold",
-    cursor: "pointer"
-  },
-  sectionTitle: {
-    fontSize: "13px",
-    fontWeight: "bold",
-    marginBottom: "10px",
-    textTransform: "uppercase"
-  },
-  linkedTableWrapper: {
-    maxHeight: "220px",
-    overflowY: "auto",
-    border: "1px solid #1e293b",
-    borderRadius: "8px"
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: "12px"
-  },
-  tableHeadRow: {
-    backgroundColor: "#02040e",
-    borderBottom: "1px solid #1e293b",
-    textAlign: "left"
-  },
-  th: {
-    padding: "8px",
-    color: "#64748b",
-    fontSize: "10px",
-    textTransform: "uppercase"
-  },
-  tableRow: {
-    borderBottom: "1px solid #1e293b"
-  },
-  td: {
-    padding: "8px"
-  },
-  btnRemoveStudent: {
-    backgroundColor: "transparent",
-    color: "#fca5a5",
-    border: "none",
-    cursor: "pointer",
-    fontSize: "11px"
-  },
-  kpiGridCC: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "16px"
-  },
-  kpiCardCC: {
-    backgroundColor: "rgba(7, 12, 34, 0.8)",
-    padding: "16px",
-    borderRadius: "10px",
-    border: "1px solid #1e293b"
-  },
-  kpiLabelCC: {
-    fontSize: "10px",
-    fontWeight: "900",
-    color: "#64748b",
-    letterSpacing: "0.5px"
-  },
-  kpiValueCC: {
-    fontSize: "26px",
-    fontWeight: "900",
-    color: "#ffffff",
-    margin: "6px 0"
-  },
-  kpiSubCC: {
-    fontSize: "11px",
-    color: "#94a3b8"
-  },
-  funnelContainer: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "14px",
-    marginTop: "10px"
-  },
-  funnelRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px"
-  },
-  funnelLabel: {
-    width: "220px",
-    fontSize: "12px",
-    color: "#cbd5e1"
-  },
-  funnelBarBg: {
-    flex: 1,
-    height: "18px",
-    backgroundColor: "#02040e",
-    borderRadius: "9px",
-    overflow: "hidden",
-    border: "1px solid #1e293b"
-  },
-  funnelBarFill: {
-    height: "100%",
-    backgroundColor: "#38bdf8",
-    borderRadius: "9px",
-    transition: "width 0.4s ease"
-  },
-  funnelStat: {
-    width: "110px",
-    fontSize: "12px",
-    fontWeight: "bold",
-    color: "#4ade80",
-    textAlign: "right"
-  },
-  desviosGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "12px",
-    marginTop: "10px"
-  },
-  desvioCard: {
-    backgroundColor: "#02040e",
-    border: "1px solid #1e293b",
-    borderRadius: "8px",
-    padding: "12px"
-  },
-  desvioTitle: {
-    fontSize: "12px",
-    fontWeight: "bold",
-    color: "#fb923c"
-  },
-  desvioCount: {
-    fontSize: "20px",
-    fontWeight: "900",
-    color: "#ffffff",
-    margin: "4px 0"
-  },
-  desvioDesc: {
-    fontSize: "10px",
-    color: "#94a3b8",
-    lineHeight: "1.3"
-  },
-  exportGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "20px",
-    marginTop: "10px"
-  },
-  exportBox: {
-    backgroundColor: "#02040e",
-    border: "1px solid #1e293b",
-    borderRadius: "10px",
-    padding: "20px",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    textAlign: "center"
-  },
-  exportIcon: {
-    fontSize: "36px",
-    marginBottom: "10px"
-  },
-  exportTitle: {
-    fontSize: "16px",
-    color: "#38bdf8",
-    margin: "0 0 8px 0"
-  },
-  exportDesc: {
-    fontSize: "12px",
-    color: "#94a3b8",
-    lineHeight: "1.5",
-    marginBottom: "18px",
-    flex: 1
-  },
-  btnExportMain: {
-    backgroundColor: "#10b981",
-    color: "#ffffff",
-    border: "none",
-    padding: "12px 20px",
-    borderRadius: "8px",
-    fontWeight: "bold",
-    fontSize: "12px",
-    cursor: "pointer",
-    boxShadow: "0 0 15px rgba(16, 185, 129, 0.4)"
-  },
-  btnExportSecondary: {
-    backgroundColor: "#8b5cf6",
-    color: "#ffffff",
-    border: "none",
-    padding: "12px 20px",
-    borderRadius: "8px",
-    fontWeight: "bold",
-    fontSize: "12px",
-    cursor: "pointer",
-    boxShadow: "0 0 15px rgba(139, 92, 246, 0.4)"
-  },
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(2, 3, 8, 0.85)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 9999
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: "420px",
-    backgroundColor: "#080d24",
-    border: "2px solid #8b5cf6",
-    borderRadius: "12px",
-    padding: "24px",
-    boxShadow: "0 0 30px rgba(139, 92, 246, 0.4)"
-  },
-  modalTitle: {
-    fontSize: "15px",
-    color: "#c084fc",
-    margin: "0 0 16px 0",
-    fontWeight: "bold"
-  },
-  modalForm: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "14px"
-  },
-  label: {
-    fontSize: "11px",
-    color: "#94a3b8",
-    display: "block",
-    marginBottom: "4px"
-  },
-  input: {
-    width: "100%",
-    padding: "10px",
-    backgroundColor: "#02040e",
-    border: "1px solid #334155",
-    borderRadius: "6px",
-    color: "#ffffff",
-    fontSize: "12px",
-    boxSizing: "border-box"
-  },
-  modalBtnRow: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "10px",
-    marginTop: "10px"
-  },
-  btnCancel: {
-    backgroundColor: "transparent",
-    color: "#94a3b8",
-    border: "1px solid #334155",
-    padding: "8px 14px",
-    borderRadius: "6px",
-    fontSize: "12px",
-    cursor: "pointer"
-  },
-  btnSave: {
-    backgroundColor: "#8b5cf6",
-    color: "#ffffff",
-    border: "none",
-    padding: "8px 16px",
-    borderRadius: "6px",
-    fontWeight: "bold",
-    fontSize: "12px",
-    cursor: "pointer"
-  }
-};
