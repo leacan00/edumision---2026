@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "./firebase";
-import { collection, addDoc, doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 
 // ==========================================
 // 🛠️ MOTOR DE GENERACIÓN MATEMÁTICA Y OPCIONES (M1 - M4)
@@ -452,17 +452,6 @@ function slug(text) {
 // ==========================================
 // 🛠️ HELPER SLUG Y GENERADOR DE ID DE ALUMNO
 // ==========================================
-function slug(text) {
-  if (!text) return "";
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .replace(/_+/g, "_");
-}
-
 function generarAlumnoId(nickname, escuela) {
   return `${slug(nickname)}__${slug(escuela)}`;
 }
@@ -536,7 +525,7 @@ export default function App() {
   const [transitioning, setTransitioning] = useState(false);
 
   // Mensaje de la Profe (Transmisión colectiva)
-  const [teacherMessage] = useState("¡Tripulantes de 1er año! Recuerden usar hoja y lápiz para verificar la base antes de responder en los mandos.");
+  const [teacherMessage, setTeacherMessage] = useState("¡Tripulantes de 1er año! Recuerden usar hoja y lápiz para verificar la base antes de responder en los mandos.");
 
   // Bitácora xAPI
   const [bitacora, setBitacora] = useState([
@@ -677,33 +666,94 @@ export default function App() {
 
     const syncProgreso = async () => {
       try {
-        await setDoc(
-          doc(db, "alumnos", alumnoId),
-          {
-            xpTotal,
-            misionesCompletadas,
-            misionesConError,
-            badgeEarned,
-            justificationQuality,
-            statsPorMision,
-            actualizadoEn: serverTimestamp()
-          },
-          { merge: true }
-        );
+        await updateDoc(doc(db, "alumnos", alumnoId), {
+          xpTotal,
+          misionesCompletadas,
+          misionesConError,
+          badgeEarned,
+          justificationQuality,
+          statsPorMision,
+          actualizadoEn: serverTimestamp()
+        });
       } catch (err) {
         console.error("Error actualizando progreso en Firestore:", err);
+        setPerfilCargado(false);
+        setAlumnoId(null);
+        alert("Tu registro fue eliminado por Control Central. Volvé a ingresar.");
+        setFaseGlobal("ingreso");
       }
     };
 
     syncProgreso();
   }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, justificationQuality, statsPorMision]);
 
+  // 📡 1) Escuchar cambios en alumnos/{alumnoId} para mantener docenteId actualizado
+  useEffect(() => {
+    if (!perfilCargado || !alumnoId || !db) return;
 
-  const handleEnviarEncuestaCierre = (e) => {
+    const unsubAlumno = onSnapshot(
+      doc(db, "alumnos", alumnoId),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setDocenteId(data.docenteId || null);
+        }
+      },
+      (err) => console.error("Error escuchando alumno:", err)
+    );
+
+    return () => unsubAlumno();
+  }, [perfilCargado, alumnoId]);
+
+  // 📡 2) Si hay docenteId, escuchar docentes/{docenteId} para "Transmisión de tu Profe en Vivo"
+  useEffect(() => {
+    if (!docenteId || !db) {
+      setTeacherMessage("¡Tripulantes de 1er año! Recuerden usar hoja y lápiz para verificar la base antes de responder en los mandos.");
+      return;
+    }
+
+    const unsubDocente = onSnapshot(
+      doc(db, "docentes", docenteId),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setTeacherMessage(
+            data.mensajeActual ||
+            data.mensaje ||
+            "¡Tripulantes de 1er año! Recuerden usar hoja y lápiz para verificar la base antes de responder en los mandos."
+          );
+        }
+      },
+      (err) => console.error("Error escuchando docente:", err)
+    );
+
+    return () => unsubDocente();
+  }, [docenteId]);
+
+
+  const handleEnviarEncuestaCierre = async (e) => {
     e.preventDefault();
-    addBitacora("📜 Cuestionario de Cierre enviado con éxito a Control Central.");
-    alert("🎉 ¡Muchas gracias! Tu opinión y resultados fueron registrados en Control Central.");
-    setFaseGlobal("juego");
+    if (!db) {
+      alert("No hay conexión con la base de datos.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "encuestas"), {
+        tipo: "alumno_cierre",
+        alumnoId: alumnoId || null,
+        docenteId: docenteId || null,
+        respuestas: encuestaCierre,
+        fecha: serverTimestamp()
+      });
+
+      addBitacora("📜 Cuestionario de Cierre enviado con éxito a Control Central.");
+      alert("🎉 ¡Muchas gracias! Tu opinión y resultados fueron registrados en Control Central.");
+      setFaseGlobal("juego");
+    } catch (err) {
+      console.error("Error guardando encuesta de cierre:", err);
+      alert("No se pudo enviar la encuesta, revisá tu conexión e intentá de nuevo.");
+    }
   };
 
   // Cambiar de Misión con Salto Hiperespacial
@@ -759,11 +809,7 @@ export default function App() {
       if (nuevasCompletadas.includes("m3")) sumaXP += 200;
       if (nuevasCompletadas.includes("m4")) sumaXP += 300;
 
-      // Bono del 20% si completó las 4 sin errores acumulados
-      if (nuevasCompletadas.length === 4 && misionesConError.length === 0) {
-        sumaXP = Math.round(sumaXP * 1.20); // 750 * 1.20 = 900 XP
-        addBitacora("🏆 ¡BONO IMPECABLE DEL 20% ACTIVADO (900 XP TOTAL)!");
-      }
+
 
       setXpTotal(sumaXP);
 
@@ -1067,7 +1113,7 @@ export default function App() {
                 EXPERIENCIA GANADA EN MISIONES LOGRADAS:
               </span>
               <span style={{ fontSize: "24px", fontWeight: "900", color: "#38bdf8" }}>
-                {xpTotal} / 750 XP {misionesCompletadas.length === 4 && misionesConError.length === 0 && "(+20% BONO = 900 XP)"}
+                {xpTotal} / 750 XP
               </span>
             </div>
 
@@ -1516,11 +1562,7 @@ export default function App() {
                             <div style={{ fontSize: "14px", fontWeight: "bold", color: "#c084fc" }}>
                               🏅 INSIGNIA ACREDITADA: Ingeniero/a de Fusión Estelar
                             </div>
-                            {misionesConError.length === 0 && (
-                              <div style={{ fontSize: "12px", color: "#4ade80", fontWeight: "bold", marginTop: "6px" }}>
-                                ⚡ ¡BONO DEL 20% APLICADO: 900 XP TOTAL (PUNTAJE PERFECTO)!
-                              </div>
-                            )}
+
                             {habilidadDesbloqueada && (
                               <div style={{ fontSize: "12px", color: "#38bdf8", fontWeight: "bold", marginTop: "8px" }}>
                                 ✨ NUEVA HABILIDAD DESBLOQUEADA PARA FUTURAS MISIONES:<br />
