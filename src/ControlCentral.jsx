@@ -7,8 +7,17 @@ import {
   updateDoc,
   deleteDoc,
   addDoc,
+  query,
+  orderBy,
+  limit,
+  writeBatch,
   serverTimestamp
 } from "firebase/firestore";
+
+// ==========================================
+// 🔒 CONFIGURACIÓN DE SEGURIDAD
+// ==========================================
+const PIN_ACCESO = "1234";
 
 // ==========================================
 // 🛠️ HELPER EXPORTADOR A EXCEL / LIBREOFFICE (.CSV NATIVO)
@@ -35,13 +44,28 @@ const exportToExcelCSV = (filename, headers, rows) => {
 };
 
 export default function App() {
+  // 🔒 Estado de Autenticación con PIN (sessionStorage)
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem("cc_pin") === PIN_ACCESO;
+  });
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+
+  // Estados de Datos
   const [docentes, setDocentes] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
   const [liveLogs, setLiveLogs] = useState([]);
   const [toast, setToast] = useState(null);
 
-  // Estados para asignación rápida de flotantes
-  const [selectedDocenteForAssign, setSelectedDocenteForAssign] = useState("");
+  // Estado de Conexión y Errores
+  const [firestoreError, setFirestoreError] = useState(null);
+  const [dbStatus, setDbStatus] = useState("CONECTADO");
+
+  // Selección de Alumnos a Designar (Checkboxes)
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+
+  // Selección de Docente Destino (Un solo clic en la tarjeta)
+  const [targetDocenteId, setTargetDocenteId] = useState(null);
 
   // Modal para alta de docentes
   const [showAddDocenteModal, setShowDocenteModal] = useState(false);
@@ -49,118 +73,236 @@ export default function App() {
   const [newEscuela, setNewEscuela] = useState("");
   const [newCurso, setNewCurso] = useState("");
 
-  // Modo de filtro opcional (por defecto "todos" para ver todo en la misma página)
-  const [viewFilter, setViewFilter] = useState("todos"); // "todos" | "vincular" | "docentes" | "alumnos" | "telemetria"
-
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
 
-  // 📡 Suscripciones en Tiempo Real a Firestore
+  const handleLoginPin = (e) => {
+    e.preventDefault();
+    if (pinInput === PIN_ACCESO) {
+      sessionStorage.setItem("cc_pin", PIN_ACCESO);
+      setIsAuthenticated(true);
+      setPinError(false);
+    } else {
+      setPinError(true);
+    }
+  };
+
+  // 📡 Suscripciones en Tiempo Real a Firestore con Callback de Error
   useEffect(() => {
-    if (!db) return;
+    if (!isAuthenticated || !db) return;
 
     // 1. Suscripción a Docentes
-    const unsubDocentes = onSnapshot(collection(db, "docentes"), (snap) => {
-      const list = [];
-      snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
-      setDocentes(list);
-      if (list.length > 0) {
-        setSelectedDocenteForAssign((prev) => prev || list[0].id);
+    const unsubDocentes = onSnapshot(
+      collection(db, "docentes"),
+      (snap) => {
+        const list = [];
+        snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        setDocentes(list);
+        setFirestoreError(null);
+        setDbStatus("CONECTADO");
+      },
+      (err) => {
+        console.error("Error en Snapshot Docentes:", err);
+        setFirestoreError(`Error en lectura de 'docentes': ${err.message}`);
+        setDbStatus(`DESCONECTADO / ERROR: ${err.message}`);
       }
-    });
+    );
 
     // 2. Suscripción a Alumnos
-    const unsubAlumnos = onSnapshot(collection(db, "alumnos"), (snap) => {
-      const list = [];
-      snap.forEach((a) => list.push({ id: a.id, ...a.data() }));
-      setAlumnos(list);
-    });
+    const unsubAlumnos = onSnapshot(
+      collection(db, "alumnos"),
+      (snap) => {
+        const list = [];
+        snap.forEach((a) => list.push({ id: a.id, ...a.data() }));
+        setAlumnos(list);
+        setFirestoreError(null);
+        setDbStatus("CONECTADO");
+      },
+      (err) => {
+        console.error("Error en Snapshot Alumnos:", err);
+        setFirestoreError(`Error en lectura de 'alumnos': ${err.message}`);
+        setDbStatus(`DESCONECTADO / ERROR: ${err.message}`);
+      }
+    );
 
-    // 3. Suscripción a Bitácora (Telemetría xAPI)
-    const unsubBitacora = onSnapshot(collection(db, "bitacora_alumnos"), (snap) => {
-      const logs = [];
-      snap.forEach((b) => logs.push({ id: b.id, ...b.data() }));
-      logs.sort((a, b) => (b.fecha?.seconds || 0) - (a.fecha?.seconds || 0));
-      setLiveLogs(logs);
-    });
+    // 3. Suscripción a Bitácora (Telemetría xAPI con limit 200)
+    const qBitacora = query(
+      collection(db, "bitacora_alumnos"),
+      orderBy("fecha", "desc"),
+      limit(200)
+    );
+    const unsubBitacora = onSnapshot(
+      qBitacora,
+      (snap) => {
+        const logs = [];
+        snap.forEach((b) => logs.push({ id: b.id, ...b.data() }));
+        setLiveLogs(logs);
+        setFirestoreError(null);
+        setDbStatus("CONECTADO");
+      },
+      (err) => {
+        console.error("Error en Snapshot Bitácora:", err);
+        setFirestoreError(`Error en lectura de 'bitacora_alumnos': ${err.message}`);
+        setDbStatus(`DESCONECTADO / ERROR: ${err.message}`);
+      }
+    );
 
     return () => {
       unsubDocentes();
       unsubAlumnos();
       unsubBitacora();
     };
-  }, []);
+  }, [isAuthenticated]);
 
-  // Derivación de alumnos flotantes y asignados por docente
-  const flotantes = alumnos.filter((a) => !a.docenteId);
-  const getAlumnosDelDocente = (docenteId) =>
-    alumnos.filter((a) => a.docenteId === docenteId);
+  // 1) ALUMNOS A DESIGNAR: Sin docenteId O con docenteId que no existe en "docentes"
+  const docentesIdsSet = new Set(docentes.map((d) => d.id));
+  const alumnosADesignar = alumnos.filter(
+    (a) => !a.docenteId || !docentesIdsSet.has(a.docenteId)
+  );
 
-  // 1. Asignar alumno flotante a un docente
-  const handleAssignStudent = async (alumnoId, targetDocenteId) => {
-    const docId = targetDocenteId || selectedDocenteForAssign;
-    if (!alumnoId || !docId || !db) return;
+  // 3) ALUMNOS ASIGNADOS: Tienen docenteId válido existente en "docentes"
+  const alumnosAsignados = alumnos.filter(
+    (a) => a.docenteId && docentesIdsSet.has(a.docenteId)
+  );
 
-    const docTarget = docentes.find((d) => d.id === docId);
-    try {
-      await updateDoc(doc(db, "alumnos", alumnoId), { docenteId: docId });
-      showToast(`✅ Alumno asignado a ${docTarget ? docTarget.nombre : "Docente"}.`);
-    } catch (err) {
-      console.error("Error asignando alumno:", err);
-      alert("No se pudo asignar el alumno.");
-    }
+  const getAlumnosCountForDocente = (docenteId) => {
+    return alumnos.filter((a) => a.docenteId === docenteId).length;
   };
 
-  // 2. Dar de baja del docente (pasa a flotante)
-  const handleUnlinkStudent = async (alumnoId, studentNick) => {
-    if (!alumnoId || !db) return;
-    const confirm = window.confirm(
-      `¿Seguro que querés dar de baja a "${studentNick}" de su docente?\n\n(El alumno pasará a la lista de flotantes sin perder su progreso ni su historial).`
+  // Detección de Docentes Duplicados (Mismo nombre, escuela y curso)
+  const isDocenteDuplicado = (docItem) => {
+    if (!docItem.nombre || !docItem.escuela || !docItem.curso) return false;
+    const nameNorm = docItem.nombre.trim().toLowerCase();
+    const escNorm = docItem.escuela.trim().toLowerCase();
+    const curNorm = docItem.curso.trim().toLowerCase();
+
+    return docentes.some(
+      (other) =>
+        other.id !== docItem.id &&
+        (other.nombre || "").trim().toLowerCase() === nameNorm &&
+        (other.escuela || "").trim().toLowerCase() === escNorm &&
+        (other.curso || "").trim().toLowerCase() === curNorm
     );
-    if (!confirm) return;
+  };
 
-    try {
-      await updateDoc(doc(db, "alumnos", alumnoId), { docenteId: null });
-      showToast(`ℹ️ "${studentNick}" ahora es un alumno flotante.`);
-    } catch (err) {
-      console.error("Error desvinculando alumno:", err);
-      alert("No se pudo desvincular el alumno.");
+  // Selección individual o masiva de tildados
+  const handleToggleSelectStudent = (studentId) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  const handleToggleSelectAllDesignar = () => {
+    if (selectedStudentIds.length === alumnosADesignar.length) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(alumnosADesignar.map((a) => a.id));
     }
   };
 
-  // 3. Reasignar a otro docente
-  const handleReassignStudent = async (alumnoId, studentNick, newDocenteId) => {
-    if (!alumnoId || !newDocenteId || !db) return;
-    const docTarget = docentes.find((d) => d.id === newDocenteId);
-    try {
-      await updateDoc(doc(db, "alumnos", alumnoId), { docenteId: newDocenteId });
-      showToast(`🔄 "${studentNick}" reasignado a ${docTarget ? docTarget.nombre : "nuevo docente"}.`);
-    } catch (err) {
-      console.error("Error reasignando alumno:", err);
-      alert("No se pudo reasignar el alumno.");
-    }
-  };
-
-  // 4. Eliminar/Deshabilitar alumno ficticio o fallido
+  // Acciones en Sector 1 & 3: Eliminar Ingreso Fallido
   const handleDeleteStudent = async (alumnoId, studentNick) => {
     if (!alumnoId || !db) return;
     const confirm = window.confirm(
-      `¿Seguro que deseas eliminar el registro de "${studentNick}"?\n\nEsta acción removerá la cuenta del alumno en caso de un ingreso fallido o ficticio.`
+      `¿Seguro que querés ELIMINAR definitivamente el registro de "${studentNick}"?
+
+Esta acción borrará la cuenta en caso de ingreso fallido o ficticio.`
     );
     if (!confirm) return;
 
     try {
       await deleteDoc(doc(db, "alumnos", alumnoId));
-      showToast(`❌ Alumno "${studentNick}" eliminado correctamente.`);
+      setSelectedStudentIds((prev) => prev.filter((id) => id !== alumnoId));
+      showToast(`❌ Alumno "${studentNick}" eliminado de la base de datos.`);
     } catch (err) {
       console.error("Error eliminando alumno:", err);
       alert("No se pudo eliminar el registro del alumno.");
     }
   };
 
-  // 5. Crear Docente en Firestore
+  // Acciones en Sector 3: Desvincular (vuelve a Alumnos a Designar)
+  const handleDesvincularStudent = async (alumnoId, studentNick) => {
+    if (!alumnoId || !db) return;
+    const confirm = window.confirm(
+      `¿Seguro que querés desvincular a "${studentNick}" de su docente?
+
+El alumno volverá a 'Alumnos a designar' conservando su progreso.`
+    );
+    if (!confirm) return;
+
+    try {
+      await updateDoc(doc(db, "alumnos", alumnoId), { docenteId: null });
+      showToast(`↩ "${studentNick}" volvió a 'Alumnos a designar'.`);
+    } catch (err) {
+      console.error("Error desvinculando alumno:", err);
+      alert("No se pudo desvincular al alumno.");
+    }
+  };
+
+  // Acciones en Sector 2: Asignar Tildados al Docente Destino
+  const handleAssignSelectedStudents = async () => {
+    if (!targetDocenteId || selectedStudentIds.length === 0 || !db) return;
+    const targetDocente = docentes.find((d) => d.id === targetDocenteId);
+    if (!targetDocente) return;
+
+    try {
+      const batch = writeBatch(db);
+      selectedStudentIds.forEach((studentId) => {
+        batch.update(doc(db, "alumnos", studentId), { docenteId: targetDocenteId });
+      });
+      await batch.commit();
+
+      const count = selectedStudentIds.length;
+      showToast(`✅ ${count} alumno(s) asignado(s) a ${targetDocente.nombre}.`);
+      setSelectedStudentIds([]);
+    } catch (err) {
+      console.error("Error asignando alumnos tildados:", err);
+      alert("No se pudieron asignar los alumnos tildados.");
+    }
+  };
+
+  // Acciones en Sector 2: Eliminar Profe con writeBatch
+  const handleDeleteDocente = async (docItem) => {
+    if (!docItem || !db) return;
+    const assignedCount = getAlumnosCountForDocente(docItem.id);
+    const confirm = window.confirm(
+      `¿Seguro que querés ELIMINAR a la docente "${docItem.nombre}" (${docItem.escuela})?
+
+Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
+    );
+    if (!confirm) return;
+
+    try {
+      const batch = writeBatch(db);
+
+      // Poner docenteId: null a todos sus alumnos asignados
+      const assignedStudents = alumnos.filter((a) => a.docenteId === docItem.id);
+      assignedStudents.forEach((a) => {
+        batch.update(doc(db, "alumnos", a.id), { docenteId: null });
+      });
+
+      // Borrar el documento del docente
+      batch.delete(doc(db, "docentes", docItem.id));
+
+      await batch.commit();
+
+      // Limpiar selección de destino si era este docente
+      if (targetDocenteId === docItem.id) {
+        setTargetDocenteId(null);
+      }
+
+      showToast(`🗑️ ${assignedCount} alumno(s) volvieron a Alumnos a designar.`);
+    } catch (err) {
+      console.error("Error eliminando docente:", err);
+      alert("No se pudo eliminar el docente.");
+    }
+  };
+
+  // Alta de Nuevo Docente
   const handleCreateDocente = async (e) => {
     e.preventDefault();
     if (!newDocenteName || !newEscuela || !newCurso || !db) return;
@@ -177,8 +319,8 @@ export default function App() {
         creadoEn: serverTimestamp()
       });
 
-      setSelectedDocenteForAssign(docRef.id);
-      showToast(`👩‍🏫 Docente "${newDocenteName}" creado. Código de acceso: ${codigoAcceso}`);
+      setTargetDocenteId(docRef.id);
+      showToast(`👩‍🏫 Docente "${newDocenteName}" creado. Código: ${codigoAcceso}`);
       setShowDocenteModal(false);
       setNewDocenteName("");
       setNewEscuela("");
@@ -189,7 +331,7 @@ export default function App() {
     }
   };
 
-  // 6. Exportar CSV
+  // Exportación CSV
   const handleExportData = () => {
     const headers = [
       "ID Alumno",
@@ -215,7 +357,7 @@ export default function App() {
         a.nickname || "-",
         a.escuela || "-",
         a.curso || "-",
-        docAssigned ? docAssigned.nombre : "Flotante (Sin Asignar)",
+        docAssigned ? docAssigned.nombre : "A designar (Sin Asignar)",
         docAssigned ? docAssigned.codigoAcceso || "-" : "-",
         a.xpTotal || 0,
         completadasStr,
@@ -231,6 +373,41 @@ export default function App() {
     showToast("📊 Reporte CSV exportado con éxito.");
   };
 
+  // 🔒 PANTALLA DE BLOQUEO POR PIN
+  if (!isAuthenticated) {
+    return (
+      <div style={{ backgroundColor: "#030712", color: "#f8fafc", minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontFamily: "sans-serif", padding: "20px" }}>
+        <form onSubmit={handleLoginPin} style={{ backgroundColor: "#0f172a", border: "1px solid #38bdf8", borderRadius: "16px", padding: "30px", maxWidth: "380px", width: "100%", textAlign: "center", boxShadow: "0 10px 25px rgba(0,0,0,0.5)" }}>
+          <div style={{ fontSize: "40px", marginBottom: "10px" }}>🏛️</div>
+          <h2 style={{ color: "#38bdf8", margin: "0 0 8px 0", fontSize: "20px" }}>Control Central Córdoba</h2>
+          <p style={{ color: "#94a3b8", fontSize: "13px", marginBottom: "20px" }}>Ingresá el PIN de acceso provincial para gestionar el sistema.</p>
+
+          <input
+            type="password"
+            placeholder="PIN de acceso..."
+            value={pinInput}
+            onChange={(e) => setPinInput(e.target.value)}
+            style={{ width: "100%", padding: "12px", borderRadius: "8px", border: pinError ? "2px solid #ef4444" : "1px solid #334155", backgroundColor: "#020617", color: "#fff", textAlign: "center", fontSize: "18px", letterSpacing: "4px", marginBottom: "15px" }}
+            autoFocus
+            required
+          />
+
+          {pinError && (
+            <div style={{ color: "#ef4444", fontSize: "12px", marginBottom: "15px", fontWeight: "bold" }}>
+              ⚠️ PIN incorrecto. Verificá la clave ingresada.
+            </div>
+          )}
+
+          <button type="submit" style={{ width: "100%", padding: "12px", borderRadius: "8px", backgroundColor: "#0284c7", color: "#fff", border: "none", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>
+            Ingresar al Panel 🚀
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  const selectedTargetDocente = docentes.find((d) => d.id === targetDocenteId);
+
   return (
     <div style={{ backgroundColor: "#030712", color: "#f8fafc", minHeight: "100vh", fontFamily: "sans-serif", padding: "20px" }}>
       {toast && (
@@ -239,384 +416,319 @@ export default function App() {
         </div>
       )}
 
-      {/* ENCABEZADO CONTROL CENTRAL */}
+      {/* BANNER ROJO DE ERROR DE FIREBASE */}
+      {firestoreError && (
+        <div style={{ backgroundColor: "#7f1d1d", border: "2px solid #ef4444", color: "#fca5a5", padding: "12px 20px", borderRadius: "10px", fontWeight: "bold", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>⚠️ {firestoreError}</span>
+          <button onClick={() => window.location.reload()} style={{ backgroundColor: "#ef4444", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* ENCABEZADO */}
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "16px", marginBottom: "20px" }}>
         <div>
-          <h1 style={{ color: "#38bdf8", margin: 0, fontSize: "24px" }}>🏛️ EduMisión Córdoba · Panel de Control Central</h1>
+          <h1 style={{ color: "#38bdf8", margin: 0, fontSize: "24px" }}>🏛️ EduMisión Córdoba · Control Central</h1>
           <p style={{ color: "#94a3b8", margin: "4px 0 0 0", fontSize: "13px" }}>
-            Vista Unificada 360°: Vinculación, Alumnos Designados por Docente, Padrón General y Telemetría Firestore
+            Panel Unificado 360°: Gestión de Matrícula, Cursos y Telemetría en Tiempo Real
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={() => setShowDocenteModal(true)} style={{ backgroundColor: "#10b981", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
-            ➕ Crear / Habilitar Docente
+            ➕ Crear Docente
           </button>
           <button onClick={handleExportData} style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
-            📊 Exportar Reporte CSV
+            📊 Exportar CSV
+          </button>
+          <button onClick={() => { sessionStorage.removeItem("cc_pin"); setIsAuthenticated(false); }} style={{ backgroundColor: "transparent", color: "#64748b", border: "1px solid #334155", padding: "10px 14px", borderRadius: "8px", cursor: "pointer", fontSize: "12px" }}>
+            🔒 Salir
           </button>
         </div>
       </header>
 
-      {/* BARRA DE BOTONES DE ACCESO RÁPIDO Y FILTRADO */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
-        <button
-          onClick={() => setViewFilter("todos")}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "8px",
-            border: viewFilter === "todos" ? "2px solid #38bdf8" : "1px solid #1e293b",
-            backgroundColor: viewFilter === "todos" ? "rgba(56, 189, 248, 0.2)" : "#0f172a",
-            color: "#fff",
-            fontWeight: "bold",
-            cursor: "pointer",
-            fontSize: "13px"
-          }}
-        >
-          👁️ Ver Todo en 1 Página ({alumnos.length} Alumnos · {docentes.length} Docentes)
-        </button>
-        <button
-          onClick={() => setViewFilter("vincular")}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "8px",
-            border: viewFilter === "vincular" ? "2px solid #fb923c" : "1px solid #1e293b",
-            backgroundColor: viewFilter === "vincular" ? "rgba(251, 146, 60, 0.2)" : "#0f172a",
-            color: "#fff",
-            fontWeight: "bold",
-            cursor: "pointer",
-            fontSize: "13px"
-          }}
-        >
-          ⚡ Solo Flotantes ({flotantes.length})
-        </button>
-        <button
-          onClick={() => setViewFilter("docentes")}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "8px",
-            border: viewFilter === "docentes" ? "2px solid #38bdf8" : "1px solid #1e293b",
-            backgroundColor: viewFilter === "docentes" ? "rgba(56, 189, 248, 0.2)" : "#0f172a",
-            color: "#fff",
-            fontWeight: "bold",
-            cursor: "pointer",
-            fontSize: "13px"
-          }}
-        >
-          👩‍🏫 Solo Grupos Docentes ({docentes.length})
-        </button>
-        <button
-          onClick={() => setViewFilter("alumnos")}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "8px",
-            border: viewFilter === "alumnos" ? "2px solid #10b981" : "1px solid #1e293b",
-            backgroundColor: viewFilter === "alumnos" ? "rgba(16, 185, 129, 0.2)" : "#0f172a",
-            color: "#fff",
-            fontWeight: "bold",
-            cursor: "pointer",
-            fontSize: "13px"
-          }}
-        >
-          👥 Solo Tabla General ({alumnos.length})
-        </button>
-        <button
-          onClick={() => setViewFilter("telemetria")}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "8px",
-            border: viewFilter === "telemetria" ? "2px solid #c084fc" : "1px solid #1e293b",
-            backgroundColor: viewFilter === "telemetria" ? "rgba(192, 132, 252, 0.2)" : "#0f172a",
-            color: "#fff",
-            fontWeight: "bold",
-            cursor: "pointer",
-            fontSize: "13px"
-          }}
-        >
-          📡 Solo Telemetría xAPI ({liveLogs.length})
-        </button>
-      </div>
-
       {/* ========================================================================= */}
-      {/* SECCIÓN 1: PANEL DE VINCULACIÓN Y GRUPOS DOCENTES (DOS COLUMNAS) */}
+      {/* SECTOR 1: ALUMNOS A DESIGNAR */}
       {/* ========================================================================= */}
-      {(viewFilter === "todos" || viewFilter === "vincular" || viewFilter === "docentes") && (
-        <div style={{ marginBottom: "30px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "20px" }}>
-            
-            {/* COLUMNA IZQUIERDA: ALUMNOS FLOTANTES SIN DOCENTE */}
-            <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <h3 style={{ color: "#fb923c", margin: 0, fontSize: "16px" }}>
-                  ⚡ Alumnos Flotantes Sin Asignar ({flotantes.length})
-                </h3>
-                <span style={{ fontSize: "11px", backgroundColor: "rgba(251, 146, 60, 0.15)", color: "#fb923c", padding: "2px 8px", borderRadius: "6px", fontWeight: "bold" }}>
-                  Requieren Vinculación
-                </span>
-              </div>
-              <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
-                Alumnos ingresados de forma autónoma. Seleccioná el docente destino para vincularlos a su curso.
-              </p>
+      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <h2 style={{ color: "#fb923c", margin: 0, fontSize: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
+            1️⃣ ALUMNOS A DESIGNAR ({alumnosADesignar.length})
+          </h2>
+          {alumnosADesignar.length > 0 && (
+            <button onClick={handleToggleSelectAllDesignar} style={{ backgroundColor: "#020617", color: "#94a3b8", border: "1px solid #334155", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", cursor: "pointer" }}>
+              {selectedStudentIds.length === alumnosADesignar.length ? "Desmarcar todos" : "Tildar todos"}
+            </button>
+          )}
+        </div>
+        <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
+          Alumnos ingresados de forma autónoma o cuyo docente ya no existe. Tildá los alumnos y seleccioná un docente destino abajo para asignarlos.
+        </p>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "420px", overflowY: "auto" }}>
-                {flotantes.length === 0 ? (
-                  <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "20px", border: "1px dashed #1e293b", borderRadius: "8px" }}>
-                    ✨ ¡No hay alumnos flotantes pendientes! Todos los estudiantes están vinculados a un docente.
-                  </div>
-                ) : (
-                  flotantes.map((a) => (
-                    <div key={a.id} style={{ backgroundColor: "#020617", border: "1px solid #334155", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div>
-                          <strong style={{ color: "#f8fafc", fontSize: "14px" }}>{a.nickname || "Alumno"}</strong>
-                          <div style={{ color: "#94a3b8", fontSize: "11px" }}>{a.escuela || "Sin escuela"} · {a.curso || "1° Año"}</div>
-                          <div style={{ color: "#38bdf8", fontSize: "11px", marginTop: "2px" }}>
-                            ⚡ <strong>{a.xpTotal || 0} XP</strong> • Misiones: <span style={{ color: "#4ade80" }}>{a.misionesCompletadas?.length || 0}/4</span>
-                          </div>
-                        </div>
-                        <button onClick={() => handleDeleteStudent(a.id, a.nickname)} title="Eliminar ingreso ficticio" style={{ backgroundColor: "transparent", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "10px" }}>
-                          ❌
-                        </button>
-                      </div>
-
-                      {/* Selector de docente individual por alumno */}
-                      <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "4px" }}>
-                        <select defaultValue="" onChange={(e) => { if (e.target.value) handleAssignStudent(a.id, e.target.value); }} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "1px solid #334155", backgroundColor: "#0f172a", color: "#fff", fontSize: "11px" }}>
-                          <option value="" disabled>Seleccionar docente para asignar...</option>
-                          {docentes.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.nombre} — {d.escuela} ({d.curso})
-                            </option>
-                          ))}
-                        </select>
-                        <button onClick={() => handleAssignStudent(a.id, selectedDocenteForAssign)} style={{ backgroundColor: "#0284c7", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}>
-                          Asignar ➔
-                        </button>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px", maxHeight: "350px", overflowY: "auto" }}>
+          {alumnosADesignar.length === 0 ? (
+            <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "20px", border: "1px dashed #1e293b", borderRadius: "8px", gridColumn: "1 / -1" }}>
+              ✨ ¡No hay alumnos a designar pendientes! Todos los estudiantes están vinculados a un docente activo.
+            </div>
+          ) : (
+            alumnosADesignar.map((a) => {
+              const isChecked = selectedStudentIds.includes(a.id);
+              const misionesCount = Array.isArray(a.misionesCompletadas) ? a.misionesCompletadas.length : 0;
+              return (
+                <div key={a.id} style={{ backgroundColor: isChecked ? "rgba(56, 189, 248, 0.12)" : "#020617", border: isChecked ? "2px solid #38bdf8" : "1px solid #334155", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleToggleSelectStudent(a.id)}
+                      style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: "#0284c7" }}
+                    />
+                    <div>
+                      <strong style={{ color: "#f8fafc", fontSize: "14px" }}>{a.nickname || "Alumno"}</strong>
+                      <div style={{ color: "#94a3b8", fontSize: "11px" }}>{a.escuela || "Sin escuela"} · {a.curso || "1° Año"}</div>
+                      <div style={{ color: "#38bdf8", fontSize: "11px", marginTop: "2px" }}>
+                        ⚡ <strong>{a.xpTotal || 0} XP</strong> • Misiones: <span style={{ color: "#4ade80" }}>{misionesCount}/4</span>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* COLUMNA DERECHA: DOCENTES Y SUS ALUMNOS DESIGNADOS / ASIGNADOS */}
-            <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                <h3 style={{ color: "#38bdf8", margin: 0, fontSize: "16px" }}>
-                  👩‍🏫 Docentes y sus Alumnos Designados ({docentes.length} Cursos)
-                </h3>
-                <span style={{ fontSize: "11px", backgroundColor: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", padding: "2px 8px", borderRadius: "6px", fontWeight: "bold" }}>
-                  Matrícula Activa por Docente
-                </span>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "420px", overflowY: "auto" }}>
-                {docentes.length === 0 ? (
-                  <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "20px", border: "1px dashed #1e293b", borderRadius: "8px" }}>
-                    No hay docentes registrados aún. Hacé clic en "➕ Crear / Habilitar Docente" para agregar uno.
                   </div>
-                ) : (
-                  docentes.map((docItem) => {
-                    const asignados = getAlumnosDelDocente(docItem.id);
-                    return (
-                      <div key={docItem.id} style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "12px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "8px", marginBottom: "8px" }}>
-                          <div>
-                            <strong style={{ color: "#38bdf8", fontSize: "14px" }}>👩‍🏫 {docItem.nombre}</strong>
-                            <div style={{ color: "#94a3b8", fontSize: "11px" }}>{docItem.escuela} · {docItem.curso || "1° Año"}</div>
-                          </div>
-                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                            <span style={{ color: "#f59e0b", backgroundColor: "#0f172a", border: "1px solid #f59e0b", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontFamily: "monospace" }}>
-                              Código: {docItem.codigoAcceso || "------"}
-                            </span>
-                            <span style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#10b981", padding: "2px 8px", borderRadius: "6px", fontWeight: "bold", fontSize: "11px" }}>
-                              {asignados.length} Alumnos
-                            </span>
-                          </div>
-                        </div>
 
-                        {/* Lista de alumnos asignados a este docente */}
-                        <div>
-                          {asignados.length === 0 ? (
-                            <div style={{ color: "#64748b", fontSize: "11px", fontStyle: "italic", padding: "4px 0" }}>
-                              Sin alumnos asignados actualmente.
-                            </div>
-                          ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                              {asignados.map((al) => (
-                                <div key={al.id} style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "6px", padding: "6px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                  <div>
-                                    <strong style={{ color: "#f8fafc", fontSize: "12px" }}>{al.nickname}</strong>
-                                    <span style={{ color: "#38bdf8", fontSize: "11px", marginLeft: "8px" }}>⚡ {al.xpTotal || 0} XP</span>
-                                    {al.badgeEarned && <span style={{ marginLeft: "6px", fontSize: "10px", color: "#f59e0b" }}>🏆 Insignia</span>}
-                                  </div>
-
-                                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                                    {/* Menu para reasignar */}
-                                    <select defaultValue="" onChange={(e) => { if (e.target.value) handleReassignStudent(al.id, al.nickname, e.target.value); }} style={{ padding: "2px 4px", borderRadius: "4px", border: "1px solid #334155", backgroundColor: "#020617", color: "#94a3b8", fontSize: "10px" }}>
-                                      <option value="" disabled>Reasignar...</option>
-                                      {docentes.filter((d) => d.id !== docItem.id).map((otherDoc) => (
-                                        <option key={otherDoc.id} value={otherDoc.id}>
-                                          a {otherDoc.nombre} ({otherDoc.escuela})
-                                        </option>
-                                      ))}
-                                    </select>
-
-                                    <button onClick={() => handleUnlinkStudent(al.id, al.nickname)} title="Dar de baja de este docente (pasa a flotante)" style={{ backgroundColor: "transparent", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "4px", padding: "2px 6px", cursor: "pointer", fontSize: "10px" }}>
-                                      Baja ✖
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-          </div>
+                  <button
+                    onClick={() => handleDeleteStudent(a.id, a.nickname)}
+                    title="Eliminar ingreso ficticio o fallido"
+                    style={{ backgroundColor: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}
+                  >
+                    ✖
+                  </button>
+                </div>
+              );
+            })
+          )}
         </div>
-      )}
+      </section>
 
       {/* ========================================================================= */}
-      {/* SECCIÓN 2: TABLA GENERAL DE TODOS LOS ALUMNOS ACTIVOS + ELIMINACIÓN */}
+      {/* SECTOR 2: PROFES */}
       {/* ========================================================================= */}
-      {(viewFilter === "todos" || viewFilter === "alumnos") && (
-        <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "30px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-            <h3 style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>
-              👥 Matriz Provincial: Todos los Alumnos Registrados ({alumnos.length})
-            </h3>
-            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
-              Padrón unificado de estudiantes activos en Firestore
-            </span>
-          </div>
+      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+          <h2 style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>
+            2️⃣ PROFES ({docentes.length} Tarjetas)
+          </h2>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #1e293b", color: "#64748b", textAlign: "left" }}>
-                  <th style={{ padding: "10px" }}>Nickname / ID</th>
-                  <th style={{ padding: "10px" }}>Escuela · Curso</th>
-                  <th style={{ padding: "10px" }}>Docente Vinculado</th>
-                  <th style={{ padding: "10px" }}>XP Total</th>
-                  <th style={{ padding: "10px" }}>Misiones</th>
-                  <th style={{ padding: "10px" }}>Insignia</th>
-                  <th style={{ padding: "10px", textAlign: "center" }}>Acciones</th>
+          {/* BOTÓN ASIGNAR TILDADOS */}
+          <button
+            onClick={handleAssignSelectedStudents}
+            disabled={!targetDocenteId || selectedStudentIds.length === 0}
+            style={{
+              backgroundColor: (!targetDocenteId || selectedStudentIds.length === 0) ? "#1e293b" : "#10b981",
+              color: (!targetDocenteId || selectedStudentIds.length === 0) ? "#64748b" : "#fff",
+              border: "none",
+              padding: "10px 18px",
+              borderRadius: "8px",
+              fontWeight: "bold",
+              cursor: (!targetDocenteId || selectedStudentIds.length === 0) ? "not-allowed" : "pointer",
+              fontSize: "13px"
+            }}
+          >
+            {targetDocenteId
+              ? `Asignar ${selectedStudentIds.length} tildado(s) a [${selectedTargetDocente?.nombre || "Destino"}] ➔`
+              : "Elegí una tarjeta de profe como destino..."}
+          </button>
+        </div>
+
+        <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
+          Hacé clic sobre la tarjeta de un docente para seleccionarlo como <strong>docente destino</strong>.
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "12px", maxHeight: "400px", overflowY: "auto" }}>
+          {docentes.length === 0 ? (
+            <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "20px", border: "1px dashed #1e293b", borderRadius: "8px", gridColumn: "1 / -1" }}>
+              No hay docentes creados. Tocá "➕ Crear Docente" arriba para habilitar uno.
+            </div>
+          ) : (
+            docentes.map((docItem) => {
+              const isSelected = targetDocenteId === docItem.id;
+              const isDuplicated = isDocenteDuplicado(docItem);
+              const assignedCount = getAlumnosCountForDocente(docItem.id);
+
+              return (
+                <div
+                  key={docItem.id}
+                  onClick={() => setTargetDocenteId(docItem.id)}
+                  style={{
+                    backgroundColor: isSelected ? "rgba(16, 185, 129, 0.15)" : "#020617",
+                    border: isSelected ? "2px solid #10b981" : "1px solid #1e293b",
+                    borderRadius: "10px",
+                    padding: "14px",
+                    cursor: "pointer",
+                    position: "relative",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  {/* ETIQUETA DE DUPLICADO */}
+                  {isDuplicated && (
+                    <span style={{ position: "absolute", top: "10px", right: "10px", backgroundColor: "#f59e0b", color: "#000", fontSize: "10px", fontWeight: "bold", padding: "2px 6px", borderRadius: "4px" }}>
+                      ⚠️ posible duplicado
+                    </span>
+                  )}
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                    <div>
+                      <strong style={{ color: isSelected ? "#4ade80" : "#38bdf8", fontSize: "15px" }}>
+                        👩‍🏫 {docItem.nombre}
+                      </strong>
+                      <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "2px" }}>
+                        {docItem.escuela} · {docItem.curso || "1° Año"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px", borderTop: "1px solid #1e293b", paddingTop: "8px" }}>
+                    <div style={{ fontSize: "11px", color: "#f59e0b", fontFamily: "monospace" }}>
+                      Código: <strong>{docItem.codigoAcceso || "------"}</strong>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <span style={{ backgroundColor: "#0f172a", color: "#38bdf8", padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold" }}>
+                        {assignedCount} Alumno(s)
+                      </span>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDocente(docItem);
+                        }}
+                        title="Eliminar profe y liberar sus alumnos"
+                        style={{ backgroundColor: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}
+                      >
+                        🗑 Eliminar profe
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* SECTOR 3: ALUMNOS ASIGNADOS */}
+      {/* ========================================================================= */}
+      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <h2 style={{ color: "#10b981", margin: 0, fontSize: "18px" }}>
+            3️⃣ ALUMNOS ASIGNADOS ({alumnosAsignados.length})
+          </h2>
+          <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+            Estudiantes vinculados activamente a un docente registrado
+          </span>
+        </div>
+
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #1e293b", color: "#64748b", textAlign: "left" }}>
+                <th style={{ padding: "10px" }}>Alumno</th>
+                <th style={{ padding: "10px" }}>Profe / Curso</th>
+                <th style={{ padding: "10px" }}>XP</th>
+                <th style={{ padding: "10px" }}>Misiones</th>
+                <th style={{ padding: "10px", textAlign: "center" }}>Acciones Distinctas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {alumnosAsignados.length === 0 ? (
+                <tr>
+                  <td colSpan="5" style={{ fontStyle: "italic", color: "#64748b", padding: "20px", textAlign: "center" }}>
+                    No hay alumnos asignados a docentes actualmente.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {alumnos.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" style={{ textStyle: "italic", color: "#64748b", padding: "20px", textAlign: "center" }}>
-                      Esperando registro de alumnos en Firestore...
-                    </td>
-                  </tr>
-                ) : (
-                  alumnos.map((al) => {
-                    const docAssigned = docentes.find((d) => d.id === al.docenteId);
-                    return (
-                      <tr key={al.id} style={{ borderBottom: "1px solid #020617" }}>
-                        <td style={{ padding: "10px" }}>
-                          <strong style={{ color: "#f8fafc" }}>{al.nickname || "Sin nombre"}</strong>
-                          <div style={{ fontSize: "10px", color: "#64748b", fontFamily: "monospace" }}>{al.id}</div>
-                        </td>
-                        <td style={{ padding: "10px", color: "#cbd5e1" }}>
-                          {al.escuela || "Sin escuela"}<br />
-                          <span style={{ fontSize: "11px", color: "#64748b" }}>{al.curso || "1° Año"}</span>
-                        </td>
-                        <td style={{ padding: "10px" }}>
-                          {docAssigned ? (
-                            <span style={{ color: "#10b981", fontWeight: "bold" }}>
-                              👩‍🏫 {docAssigned.nombre} ({docAssigned.escuela})
-                            </span>
-                          ) : (
-                            <span style={{ color: "#fb923c", fontStyle: "italic" }}>
-                              ⚡ Flotante (Sin docente)
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ padding: "10px" }}>
-                          <strong style={{ color: "#f59e0b" }}>⚡ {al.xpTotal || 0} XP</strong>
-                        </td>
-                        <td style={{ padding: "10px", color: "#4ade80" }}>
-                          {Array.isArray(al.misionesCompletadas) && al.misionesCompletadas.length > 0
-                            ? al.misionesCompletadas.join(", ").toUpperCase()
-                            : "Ninguna"}
-                        </td>
-                        <td style={{ padding: "10px" }}>
-                          {al.badgeEarned ? (
-                            <span style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", padding: "2px 8px", borderRadius: "4px", fontWeight: "bold", fontSize: "11px" }}>
-                              🏆 Otorgada
-                            </span>
-                          ) : (
-                            <span style={{ color: "#64748b", fontSize: "11px" }}>En proceso</span>
-                          )}
-                        </td>
-                        <td style={{ padding: "10px", textAlign: "center" }}>
+              ) : (
+                alumnosAsignados.map((al) => {
+                  const docAssigned = docentes.find((d) => d.id === al.docenteId);
+                  const misionesStr = Array.isArray(al.misionesCompletadas) && al.misionesCompletadas.length > 0
+                    ? al.misionesCompletadas.join(", ").toUpperCase()
+                    : "Ninguna";
+
+                  return (
+                    <tr key={al.id} style={{ borderBottom: "1px solid #020617" }}>
+                      <td style={{ padding: "10px" }}>
+                        <strong style={{ color: "#f8fafc" }}>{al.nickname || "Alumno"}</strong>
+                        <div style={{ fontSize: "11px", color: "#94a3b8" }}>{al.escuela || "Escuela"}</div>
+                      </td>
+                      <td style={{ padding: "10px", color: "#4ade80", fontWeight: "bold" }}>
+                        👩‍🏫 {docAssigned ? docAssigned.nombre : "Profe"}<br />
+                        <span style={{ fontSize: "10px", color: "#64748b" }}>{docAssigned?.curso || al.curso || "1° Año"}</span>
+                      </td>
+                      <td style={{ padding: "10px" }}>
+                        <strong style={{ color: "#f59e0b" }}>⚡ {al.xpTotal || 0} XP</strong>
+                      </td>
+                      <td style={{ padding: "10px", color: "#38bdf8" }}>
+                        {misionesStr}
+                      </td>
+                      <td style={{ padding: "10px", textAlign: "center" }}>
+                        <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                          {/* ACCIÓN 1: DESVINCULAR (Vuelve a alumnos a designar) */}
+                          <button
+                            onClick={() => handleDesvincularStudent(al.id, al.nickname)}
+                            title="Volver a la lista de alumnos a designar"
+                            style={{ backgroundColor: "rgba(251, 146, 60, 0.15)", color: "#fb923c", border: "1px solid #fb923c", padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}
+                          >
+                            ↩ Desvincular
+                          </button>
+
+                          {/* ACCIÓN 2: ELIMINAR (Borra el ingreso fallido) */}
                           <button
                             onClick={() => handleDeleteStudent(al.id, al.nickname)}
-                            title="Eliminar registro ficticio o fallido de Firestore"
-                            style={{
-                              backgroundColor: "rgba(239, 68, 68, 0.15)",
-                              color: "#ef4444",
-                              border: "1px solid #ef4444",
-                              borderRadius: "6px",
-                              padding: "4px 8px",
-                              cursor: "pointer",
-                              fontSize: "12px",
-                              fontWeight: "bold"
-                            }}
+                            title="Eliminar definitivamente el ingreso ficticio"
+                            style={{ backgroundColor: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid #ef4444", padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}
                           >
-                            ❌ Eliminar
+                            ✖ Eliminar
                           </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </section>
 
       {/* ========================================================================= */}
-      {/* SECCIÓN 3: TELEMETRÍA XAPI EN TIEMPO REAL */}
+      {/* SECTOR 4: TELEMETRÍA */}
       {/* ========================================================================= */}
-      {(viewFilter === "todos" || viewFilter === "telemetria") && (
-        <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px" }}>
-          <h3 style={{ color: "#38bdf8", marginTop: 0, display: "flex", alignItems: "center", gap: "10px", fontSize: "18px" }}>
-            📡 Telemetría xAPI Provincial en Tiempo Real
-            <span style={{ fontSize: "11px", backgroundColor: "#10b981", color: "#fff", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
-              ● FIRESTORE CONECTADO
-            </span>
-          </h3>
-          <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
-            Eventos xAPI recibidos en tiempo real desde la cabina de los estudiantes:
-          </p>
+      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <h2 style={{ color: "#c084fc", margin: 0, fontSize: "18px", display: "flex", alignItems: "center", gap: "10px" }}>
+            4️⃣ TELEMETRÍA xAPI EN TIEMPO REAL ({liveLogs.length} Eventos)
+          </h2>
+          <span style={{ fontSize: "11px", backgroundColor: dbStatus === "CONECTADO" ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)", color: dbStatus === "CONECTADO" ? "#4ade80" : "#ef4444", border: `1px solid ${dbStatus === "CONECTADO" ? "#10b981" : "#ef4444"}`, padding: "4px 10px", borderRadius: "8px", fontWeight: "bold" }}>
+            ● {dbStatus}
+          </span>
+        </div>
+        <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
+          Últimos 200 eventos xAPI registrados desde las cabinas de los alumnos:
+        </p>
 
-          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "8px", padding: "15px", maxHeight: "350px", overflowY: "auto", fontFamily: "monospace", fontSize: "12px" }}>
-            {liveLogs.length === 0 ? (
-              <div style={{ color: "#64748b", fontStyle: "italic" }}>
-                Esperando primeros eventos de alumnos en tiempo real...
-              </div>
-            ) : (
-              liveLogs.map((log) => (
-                <div key={log.id} style={{ marginBottom: "8px", borderBottom: "1px dashed #1e293b", paddingBottom: "6px", display: "flex", justifyContent: "space-between" }}>
-                  <div>
-                    <span style={{ color: "#38bdf8", fontWeight: "bold" }}>[{log.alumno || log.alumnoId || "Alumno"}]</span> ({log.escuela || "Córdoba"}): <span style={{ color: "#f8fafc" }}>{log.evento}</span>
-                  </div>
-                  <span style={{ color: "#f59e0b" }}>{log.xp || 0} XP</span>
+        <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "8px", padding: "15px", maxHeight: "300px", overflowY: "auto", fontFamily: "monospace", fontSize: "12px" }}>
+          {liveLogs.length === 0 ? (
+            <div style={{ color: "#64748b", fontStyle: "italic" }}>
+              Esperando eventos de telemetría en tiempo real...
+            </div>
+          ) : (
+            liveLogs.map((log) => (
+              <div key={log.id} style={{ marginBottom: "8px", borderBottom: "1px dashed #1e293b", paddingBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                <div>
+                  <span style={{ color: "#38bdf8", fontWeight: "bold" }}>[{log.alumno || log.alumnoId || "Alumno"}]</span> ({log.escuela || "Córdoba"}): <span style={{ color: "#f8fafc" }}>{log.evento}</span>
                 </div>
-              ))
-            )}
-          </div>
+                <span style={{ color: "#f59e0b" }}>{log.xp || 0} XP</span>
+              </div>
+            ))
+          )}
         </div>
-      )}
+      </section>
 
       {/* MODAL CREAR DOCENTE */}
       {showAddDocenteModal && (
