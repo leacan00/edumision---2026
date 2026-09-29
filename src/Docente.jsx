@@ -810,10 +810,14 @@ export default function App() {
       return;
     }
     try {
-      await updateDoc(doc(db, "docentes", docenteId), {
-        mensajeActual: inputMsg,
-        mensajeActualizadoEn: serverTimestamp()
-      });
+      await setDoc(
+        doc(db, "docentes", docenteId),
+        {
+          mensajeActual: inputMsg,
+          mensajeActualizadoEn: serverTimestamp()
+        },
+        { merge: true }
+      );
       showToast("📢 Transmisión enviada a las cabinas de tus alumnos.");
     } catch (err) {
       console.error("Error al transmitir mensaje:", err);
