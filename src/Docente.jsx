@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "./firebase";
-import { collection, query, orderBy, onSnapshot, doc, setDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, where, onSnapshot, doc, getDoc, setDoc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 
 const styles = {
   alertBadge: {
@@ -466,96 +466,7 @@ const MISSION_PEDAGOGICAL_INFO = {
   }
 };
 
-const INITIAL_STUDENTS = [
-  {
-    id: 1, name: "Martín G.", shipName: "Halcón de las Sierras", uuid: "7a3b2c1d-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
-    xp: 750, badgeEarned: true, interestRegistered: true, helpsRequested: 0, errorsCount: 0,
-    justificationQuality: "Master",
-    missions: {
-      m1: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m2: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m3: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m4: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null }
-    }
-  },
-  {
-    id: 2, name: "Sofía V.", shipName: "Centella Alfa", uuid: "8b4c3d2e-5f6a-7b8c-9d0e-1f2a3b4c5d6e",
-    xp: 250, badgeEarned: false, interestRegistered: true, helpsRequested: 1, errorsCount: 4,
-    justificationQuality: null,
-    missions: {
-      m1: { status: "completado", attempts: 2, helps: 1, errors: 1, lastErrorCode: "ERR_DIRECT" },
-      m2: { status: "en_curso", attempts: 3, helps: 0, errors: 3, lastErrorCode: "ERR_DIRECT" },
-      m3: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null }
-    }
-  },
-  {
-    id: 3, name: "Facundo S.", shipName: "Meteoro Austral", uuid: "9c5d4e3f-6a7b-8c9d-0e1f-2a3b4c5d6e7f",
-    xp: 450, badgeEarned: false, interestRegistered: false, helpsRequested: 2, errorsCount: 3,
-    justificationQuality: null,
-    missions: {
-      m1: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m2: { status: "completado", attempts: 2, helps: 1, errors: 1, lastErrorCode: "ERR_PARTIAL" },
-      m3: { status: "completado", attempts: 3, helps: 1, errors: 2, lastErrorCode: "ERR_LCD" },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null }
-    }
-  },
-  {
-    id: 4, name: "Valentina R.", shipName: "Cóndor Estelar", uuid: "1d2e3f4a-5b6c-7d8e-9f0a-1b2c3d4e5f6a",
-    xp: 750, badgeEarned: true, interestRegistered: true, helpsRequested: 0, errorsCount: 0,
-    justificationQuality: "Master",
-    missions: {
-      m1: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m2: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m3: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m4: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null }
-    }
-  },
-  {
-    id: 5, name: "Tomás B.", shipName: "Rayo Cba", uuid: "2e3f4a5b-6c7d-8e9f-0a1b-2c3d4e5f6a7b",
-    xp: 100, badgeEarned: false, interestRegistered: false, helpsRequested: 2, errorsCount: 2,
-    justificationQuality: null,
-    missions: {
-      m1: { status: "completado", attempts: 3, helps: 2, errors: 2, lastErrorCode: "ERR_PARTIAL" },
-      m2: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null },
-      m3: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null }
-    }
-  },
-  {
-    id: 6, name: "Camila O.", shipName: "Pampa Orbital", uuid: "3f4a5b6c-7d8e-9f0a-1b2c-3d4e5f6a7b8c",
-    xp: 450, badgeEarned: false, interestRegistered: true, helpsRequested: 1, errorsCount: 3,
-    justificationQuality: null,
-    missions: {
-      m1: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m2: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m3: { status: "completado", attempts: 4, helps: 1, errors: 3, lastErrorCode: "ERR_LCD" },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null }
-    }
-  },
-  {
-    id: 7, name: "Bautista L.", shipName: "Vanguardia 1", uuid: "4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d",
-    xp: 750, badgeEarned: true, interestRegistered: true, helpsRequested: 2, errorsCount: 2,
-    justificationQuality: "Intuitive",
-    missions: {
-      m1: { status: "completado", attempts: 2, helps: 1, errors: 1, lastErrorCode: "ERR_DIRECT" },
-      m2: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null },
-      m3: { status: "completado", attempts: 2, helps: 1, errors: 1, lastErrorCode: "ERR_COMPARE" },
-      m4: { status: "completado", attempts: 1, helps: 0, errors: 0, lastErrorCode: null }
-    }
-  },
-  {
-    id: 8, name: "Delfina P.", shipName: "Sonda Traslasierra", uuid: "5b6c7d8e-9f0a-1b2c-3d4e-5f6a7b8c9d0e",
-    xp: 0, badgeEarned: false, interestRegistered: false, helpsRequested: 0, errorsCount: 0,
-    justificationQuality: null,
-    missions: {
-      m1: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null },
-      m2: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null },
-      m3: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null },
-      m4: { status: "bloqueada", attempts: 0, helps: 0, errors: 0, lastErrorCode: null }
-    }
-  }
-];
+
 
 const SYSTEM_EXPERT_ALERTS = {
   ERR_DIRECT: "Error suma directa: 🛠️ Propuesta para el aula presencial: dinámica de doblado de tiras de papel para visualizar por qué el denominador nunca se suma.",
@@ -597,15 +508,7 @@ function renderMissionCell(student, mKey) {
   );
 }
 
-function justificationLabelStyle(quality) {
-  let color = "#cbd5e1";
-  let bg = "rgba(148, 163, 184, 0.1)";
-  if (quality === "Master" || quality === "Intuitive") {
-    color = "#4ade80";
-    bg = "rgba(16, 185, 129, 0.15)";
-  }
-  return { padding: "3px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: "bold", backgroundColor: bg, color: color };
-}
+
 
 // ==========================================
 // 📬 COMPONENTE MODAL DE ANÁLISIS (ARRIBA EN PANTALLA, NO AL COSTADO)
@@ -660,7 +563,7 @@ function DrawerWithSendButton({ student, onClose }) {
         <div style={styles.modalHeader}>
           <div>
             <h2 style={{ margin: 0, color: "#38bdf8", fontSize: "18px" }}>Análisis de Trayectoria: {student.name}</h2>
-            <span style={{ fontSize: "12px", color: "#94a3b8" }}>🚀 {student.shipName} · CUIL: {student.uuid.slice(0, 8)}...</span>
+            <span style={{ fontSize: "12px", color: "#94a3b8" }}>ID: {student.id} · Escuela: {student.escuela}</span>
           </div>
           <button style={styles.btnCloseModal} onClick={onClose}>✕</button>
         </div>
@@ -713,15 +616,40 @@ const translateDesvio = (code) => {
   return code || "Desvío general";
 };
 
+function slug(text) {
+  if (!text) return "";
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+\$/g, "")
+    .replace(/_+/g, "_");
+}
+
 export default function App() {
-  const [faseDocente, setFaseDocente] = useState("ingreso"); // 'ingreso', 'panel', 'evaluacion'
+  const [docenteId, setDocenteId] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("edumision_docente_id") || null;
+    }
+    return null;
+  });
+
+  const [faseDocente, setFaseDocente] = useState(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("edumision_docente_id")) {
+      return "panel";
+    }
+    return "ingreso";
+  });
   
   // Registro / Perfil Inicial Docente
   const [perfilDocente, setPerfilDocente] = useState({
-    nombre: "Profe Laura",
-    escuela: "Escuela IPEM 268",
-    curso: "1° Año B"
+    nombre: "",
+    escuela: "IPEM",
+    curso: "1° Año"
   });
+  const [tipoEscuela, setTipoEscuela] = useState("IPEM");
+  const [escuelaOtra, setEscuelaOtra] = useState("");
 
   // Cuestionario de Valoración de la Consola Docente
   const [encuestaDocente, setEncuestaDocente] = useState({
@@ -732,16 +660,22 @@ export default function App() {
     sugerenciasMejora: ""
   });
 
-  const [students, setStudents] = useState(INITIAL_STUDENTS);
+  const [students, setStudents] = useState([]);
   const [liveLogs, setLiveLogs] = useState([]);
 
-  // 🔄 Escuchador en tiempo real de Firestore
-    // 🔄 Escuchador en tiempo real de Firestore para 'alumnos', 'docentes' y 'bitacora_alumnos'
+  // 🔄 1. Escuchar 'alumnos' filtrados strictly por docenteId
   useEffect(() => {
-    if (!db) return;
+    if (!db || !docenteId) {
+      setStudents([]);
+      return;
+    }
 
-    // 1. Escuchar la colección "alumnos"
-    const unsubAlumnos = onSnapshot(collection(db, "alumnos"), (snapshot) => {
+    const qAlumnos = query(
+      collection(db, "alumnos"),
+      where("docenteId", "==", docenteId)
+    );
+
+    const unsubAlumnos = onSnapshot(qAlumnos, (snapshot) => {
       const list = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
@@ -772,10 +706,15 @@ export default function App() {
           }
         });
       });
-      if (list.length > 0) setStudents(list);
+      setStudents(list);
     });
 
-    // 2. Escuchar la colección "bitacora_alumnos"
+    return () => unsubAlumnos();
+  }, [docenteId]);
+
+  // 🔄 2. Escuchar la colección 'bitacora_alumnos'
+  useEffect(() => {
+    if (!db) return;
     const qBitacora = query(collection(db, "bitacora_alumnos"), orderBy("fecha", "desc"));
     const unsubBitacora = onSnapshot(qBitacora, (snapshot) => {
       const logs = [];
@@ -785,10 +724,7 @@ export default function App() {
       setLiveLogs(logs);
     });
 
-    return () => {
-      unsubAlumnos();
-      unsubBitacora();
-    };
+    return () => unsubBitacora();
   }, []);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [teacherMessage, setTeacherMessage] = useState("¡Buen viaje espacial, tripulantes! Lean con atención cada consigna.");
@@ -797,10 +733,17 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState(null);
 
   const totalStudents = students.length;
-  const activeStudents = students.filter((s) => s.xp > 0).length;
+  const atLeastOneCompleted = students.filter(
+    (s) => Array.isArray(s.misionesCompletadas) && s.misionesCompletadas.length > 0
+  ).length;
+  const allFourCompleted = students.filter(
+    (s) => Array.isArray(s.misionesCompletadas) && s.misionesCompletadas.length === 4
+  ).length;
   const badgesAwarded = students.filter((s) => s.badgeEarned).length;
-  const partPercentage = Math.round((activeStudents / totalStudents) * 100);
-  const badgePercentage = Math.round((badgesAwarded / totalStudents) * 100);
+
+  const atLeastOnePercentage = totalStudents ? Math.round((atLeastOneCompleted / totalStudents) * 100) : 0;
+  const allFourPercentage = totalStudents ? Math.round((allFourCompleted / totalStudents) * 100) : 0;
+  const badgePercentage = totalStudents ? Math.round((badgesAwarded / totalStudents) * 100) : 0;
 
   const errorsCount = {
     ERR_DIRECT: students.filter((s) => s.missions.m1.lastErrorCode === "ERR_DIRECT" || s.missions.m2.lastErrorCode === "ERR_DIRECT").length,
@@ -814,27 +757,45 @@ export default function App() {
     setTimeout(() => setToastMsg(null), 4000);
   };
 
-    const handleGuardarPerfilDocente = async (e) => {
+  const handleGuardarPerfilDocente = async (e) => {
     e.preventDefault();
-    if (!perfilDocente.nombre || !perfilDocente.escuela) return;
+    const finalEscuela = tipoEscuela === "Otra" ? escuelaOtra.trim() : tipoEscuela;
+    if (!perfilDocente.nombre || !finalEscuela) {
+      alert("Por favor completa tu Nombre y Escuela.");
+      return;
+    }
+
+    const dId = `${slug(perfilDocente.nombre)}__${slug(finalEscuela)}__${slug(perfilDocente.curso)}`;
 
     if (db) {
       try {
-        await addDoc(collection(db, "docentes"), {
-          nombre: perfilDocente.nombre,
-          escuela: perfilDocente.escuela,
-          curso: perfilDocente.curso || "1° Año",
-          codigoAcceso: Math.floor(100000 + Math.random() * 900000).toString(),
-          activo: true,
-          creadoEn: serverTimestamp()
-        });
+        const snap = await getDoc(doc(db, "docentes", dId));
+        if (snap.exists()) {
+          const data = snap.data();
+          setPerfilDocente({
+            nombre: data.nombre || perfilDocente.nombre,
+            escuela: data.escuela || finalEscuela,
+            curso: data.curso || perfilDocente.curso
+          });
+        } else {
+          await setDoc(doc(db, "docentes", dId), {
+            nombre: perfilDocente.nombre,
+            escuela: finalEscuela,
+            curso: perfilDocente.curso || "1° Año",
+            codigoAcceso: Math.floor(100000 + Math.random() * 900000).toString(),
+            activo: true,
+            creadoEn: serverTimestamp()
+          });
+        }
       } catch (err) {
-        console.error("Error guardando docente en Firestore:", err);
+        console.error("Error al autenticar docente:", err);
       }
     }
 
+    setDocenteId(dId);
+    sessionStorage.setItem("edumision_docente_id", dId);
     setFaseDocente("panel");
-    showToast(`👩‍🏫 Bienvenida ${perfilDocente.nombre} a la Consola de Monitoreo (${perfilDocente.escuela})`);
+    showToast(`👩‍🏫 Bienvenida/o ${perfilDocente.nombre} (${finalEscuela})`);
   };
 
   const handleEnviarEncuestaDocente = (e) => {
@@ -843,9 +804,21 @@ export default function App() {
     showToast("✉️ ¡Gracias Profe! Tu valoración y sugerencias fueron enviadas con éxito a Control Central.");
   };
 
-  const handleSendMessage = () => {
-    setTeacherMessage(inputMsg);
-    alert(`📢 Transmisión enviada a las cabinas de los alumnos:\n\n"${inputMsg}"`);
+  const handleSendMessage = async () => {
+    if (!docenteId || !db) {
+      alert("No se pudo identificar la cuenta del docente.");
+      return;
+    }
+    try {
+      await updateDoc(doc(db, "docentes", docenteId), {
+        mensajeActual: inputMsg,
+        mensajeActualizadoEn: serverTimestamp()
+      });
+      showToast("📢 Transmisión enviada a las cabinas de tus alumnos.");
+    } catch (err) {
+      console.error("Error al transmitir mensaje:", err);
+      alert("No se pudo transmitir el mensaje.");
+    }
   };
 
   return (
@@ -879,15 +852,37 @@ export default function App() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.formLabel}>Escuela Secundaria / IPEM:</label>
-              <input
-                type="text"
-                placeholder="Ej: IPEM 268, Colegio Manuel Belgrano"
-                value={perfilDocente.escuela}
-                onChange={(e) => setPerfilDocente({ ...perfilDocente, escuela: e.target.value })}
-                style={styles.formInput}
-                required
-              />
+              <label style={styles.formLabel}>Escuela / Institución:</label>
+              <select
+                value={tipoEscuela}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTipoEscuela(val);
+                  const finalEscuela = val === "Otra" ? escuelaOtra : val;
+                  setPerfilDocente({ ...perfilDocente, escuela: finalEscuela });
+                }}
+                style={styles.formSelect}
+              >
+                <option value="IPEM">IPEM</option>
+                <option value="IPET">IPET</option>
+                <option value="CENMA">CENMA</option>
+                <option value="PROA">PROA</option>
+                <option value="Privada">Privada</option>
+                <option value="Otra">Otra</option>
+              </select>
+              {tipoEscuela === "Otra" && (
+                <input
+                  type="text"
+                  placeholder="Escribí el nombre de tu escuela"
+                  value={escuelaOtra}
+                  onChange={(e) => {
+                    setEscuelaOtra(e.target.value);
+                    setPerfilDocente({ ...perfilDocente, escuela: e.target.value });
+                  }}
+                  style={{ ...styles.formInput, marginTop: "8px" }}
+                  required
+                />
+              )}
             </div>
 
             <div style={styles.formGroup}>
@@ -897,10 +892,9 @@ export default function App() {
                 onChange={(e) => setPerfilDocente({ ...perfilDocente, curso: e.target.value })}
                 style={styles.formSelect}
               >
-                <option value="1° Año A">1° Año A</option>
-                <option value="1° Año B">1° Año B</option>
-                <option value="1° Año C">1° Año C</option>
+                <option value="1° Año">1° Año</option>
                 <option value="2° Año">2° Año</option>
+                <option value="3° Año">3° Año</option>
               </select>
             </div>
 
@@ -975,20 +969,20 @@ export default function App() {
           )}
 
           <div style={styles.kpiGrid}>
-            <div style={{ ...styles.kpiCard, borderLeft: "4px solid #8b5cf6" }}>
-              <p style={styles.kpiLabel}>🔵 % PARTICIPACIÓN</p>
-              <p style={{ ...styles.kpiValue, color: "#c084fc" }}>{partPercentage}%</p>
-              <div style={styles.kpiSub}>Evolución: 📈 Sem 1: 12% ➔ Sem 2: {partPercentage}%</div>
+            <div style={{ ...styles.kpiCard, borderLeft: "4px solid #38bdf8" }}>
+              <p style={styles.kpiLabel}>🔵 % AVANCE (AL MENOS 1 MISIÓN)</p>
+              <p style={{ ...styles.kpiValue, color: "#38bdf8" }}>{atLeastOnePercentage}%</p>
+              <div style={styles.kpiSub}>{atLeastOneCompleted} de {totalStudents} alumnos con avance</div>
             </div>
             <div style={{ ...styles.kpiCard, borderLeft: "4px solid #10b981" }}>
-              <p style={styles.kpiLabel}>🟢 % COMPLETITUD (EN VERDE)</p>
-              <p style={{ ...styles.kpiValue, color: "#4ade80" }}>85%</p>
-              <div style={styles.kpiSub}>Evolución: 📈 Sem 1: 5% ➔ Sem 2: 85%</div>
+              <p style={styles.kpiLabel}>🟢 % COMPLETITUD (4 MISIONES)</p>
+              <p style={{ ...styles.kpiValue, color: "#4ade80" }}>{allFourPercentage}%</p>
+              <div style={styles.kpiSub}>{allFourCompleted} de {totalStudents} alumnos completaron las 4</div>
             </div>
-            <div style={{ ...styles.kpiCard, borderLeft: "4px solid #10b981" }}>
-              <p style={styles.kpiLabel}>🟢 % DOMINANTES (EN VERDE)</p>
-              <p style={{ ...styles.kpiValue, color: "#4ade80" }}>{badgePercentage}%</p>
-              <div style={styles.kpiSub}>Evolución: 📈 Sem 1: 0% ➔ Sem 2: {badgePercentage}%</div>
+            <div style={{ ...styles.kpiCard, borderLeft: "4px solid #c084fc" }}>
+              <p style={styles.kpiLabel}>🟣 % DOMINANTES (INSIGNIA)</p>
+              <p style={{ ...styles.kpiValue, color: "#c084fc" }}>{badgePercentage}%</p>
+              <div style={styles.kpiSub}>{badgesAwarded} de {totalStudents} alumnos acreditados</div>
             </div>
           </div>
 
@@ -1045,41 +1039,39 @@ export default function App() {
                           M4 (Despegue) ℹ️
                         </button>
                       </th>
-                      <th style={styles.th}>Justif. M4</th>
                       <th style={styles.th}>Experiencia</th>
                       <th style={styles.th}>Acción</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {students.map((student) => (
-                      <tr key={student.id} style={styles.tr}>
-                        <td style={{ ...styles.td, fontWeight: "bold", color: "#ffffff" }}>
-                          {student.name} <br />
-                          <span style={{ fontSize: "10px", color: "#94a3b8" }}>🚀 {student.shipName}</span>
-                        </td>
-                        <td style={styles.td}>{renderMissionCell(student, "m1")}</td>
-                        <td style={styles.td}>{renderMissionCell(student, "m2")}</td>
-                        <td style={styles.td}>{renderMissionCell(student, "m3")}</td>
-                        <td style={styles.td}>{renderMissionCell(student, "m4")}</td>
-                        <td style={styles.td}>
-                          {student.justificationQuality ? (
-                            <span style={justificationLabelStyle(student.justificationQuality)}>
-                              {student.justificationQuality === "Master" ? "🎓 CIENTÍFICA" : "🧠 INTUITIVA"}
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>PENDIENTE</span>
-                          )}
-                        </td>
-                        <td style={styles.td}>
-                          <strong style={{ color: "#38bdf8" }}>{student.xp} XP</strong>
-                        </td>
-                        <td style={styles.td}>
-                          <button onClick={() => setSelectedStudent(student)} style={styles.btnTableAction}>
-                            Analizar
-                          </button>
+                    {students.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" style={{ fontStyle: "italic", color: "#64748b", padding: "20px", textAlign: "center" }}>
+                          Todavía no tenés alumnos asignados. Pedile al Control Central que los vincule.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      students.map((student) => (
+                        <tr key={student.id} style={styles.tr}>
+                          <td style={{ ...styles.td, fontWeight: "bold", color: "#ffffff" }}>
+                            {student.name} <br />
+                            <span style={{ fontSize: "10px", color: "#94a3b8" }}>{student.escuela}</span>
+                          </td>
+                          <td style={styles.td}>{renderMissionCell(student, "m1")}</td>
+                          <td style={styles.td}>{renderMissionCell(student, "m2")}</td>
+                          <td style={styles.td}>{renderMissionCell(student, "m3")}</td>
+                          <td style={styles.td}>{renderMissionCell(student, "m4")}</td>
+                          <td style={styles.td}>
+                            <strong style={{ color: "#38bdf8" }}>{student.xp} XP</strong>
+                          </td>
+                          <td style={styles.td}>
+                            <button onClick={() => setSelectedStudent(student)} style={styles.btnTableAction}>
+                              Analizar
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
