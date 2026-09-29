@@ -6,7 +6,6 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  addDoc,
   query,
   orderBy,
   limit,
@@ -23,7 +22,7 @@ const PIN_ACCESO = "1234";
 // 🛠️ HELPER EXPORTADOR A EXCEL / LIBREOFFICE (.CSV NATIVO)
 // ==========================================
 const exportToExcelCSV = (filename, headers, rows) => {
-  const bom = "\uFEFF";
+  const bom = "﻿";
   const csvContent =
     bom +
     [
@@ -31,7 +30,8 @@ const exportToExcelCSV = (filename, headers, rows) => {
       ...rows.map((row) =>
         row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(";")
       )
-    ].join("\n");
+    ].join("
+");
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -57,7 +57,7 @@ export default function App() {
   const [liveLogs, setLiveLogs] = useState([]);
   const [toast, setToast] = useState(null);
 
-  // Estado de Conexión y Errores
+  // Estado de Conexión y Errores de Firebase
   const [firestoreError, setFirestoreError] = useState(null);
   const [dbStatus, setDbStatus] = useState("CONECTADO");
 
@@ -66,12 +66,6 @@ export default function App() {
 
   // Selección de Docente Destino (Un solo clic en la tarjeta)
   const [targetDocenteId, setTargetDocenteId] = useState(null);
-
-  // Modal para alta de docentes
-  const [showAddDocenteModal, setShowDocenteModal] = useState(false);
-  const [newDocenteName, setNewDocenteName] = useState("");
-  const [newEscuela, setNewEscuela] = useState("");
-  const [newCurso, setNewCurso] = useState("");
 
   const showToast = (msg) => {
     setToast(msg);
@@ -204,7 +198,7 @@ export default function App() {
     }
   };
 
-  // Acciones en Sector 1 & 3: Eliminar Ingreso Fallido
+  // Acciones en Sector 1 & 2: Eliminar Ingreso Fallido
   const handleDeleteStudent = async (alumnoId, studentNick) => {
     if (!alumnoId || !db) return;
     const confirm = window.confirm(
@@ -224,7 +218,7 @@ Esta acción borrará la cuenta en caso de ingreso fallido o ficticio.`
     }
   };
 
-  // Acciones en Sector 3: Desvincular (vuelve a Alumnos a Designar)
+  // Acciones en Sector 2: Desvincular (vuelve a Alumnos a Designar)
   const handleDesvincularStudent = async (alumnoId, studentNick) => {
     if (!alumnoId || !db) return;
     const confirm = window.confirm(
@@ -295,39 +289,10 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
         setTargetDocenteId(null);
       }
 
-      showToast(`🗑️ ${assignedCount} alumno(s) volvieron a Alumnos a designar.`);
+      showToast(`🗑️ ${assignedCount} alumnos volvieron a Alumnos a designar.`);
     } catch (err) {
       console.error("Error eliminando docente:", err);
       alert("No se pudo eliminar el docente.");
-    }
-  };
-
-  // Alta de Nuevo Docente
-  const handleCreateDocente = async (e) => {
-    e.preventDefault();
-    if (!newDocenteName || !newEscuela || !newCurso || !db) return;
-
-    const codigoAcceso = Math.floor(100000 + Math.random() * 900000).toString();
-
-    try {
-      const docRef = await addDoc(collection(db, "docentes"), {
-        nombre: newDocenteName,
-        escuela: newEscuela,
-        curso: newCurso,
-        codigoAcceso: codigoAcceso,
-        activo: true,
-        creadoEn: serverTimestamp()
-      });
-
-      setTargetDocenteId(docRef.id);
-      showToast(`👩‍🏫 Docente "${newDocenteName}" creado. Código: ${codigoAcceso}`);
-      setShowDocenteModal(false);
-      setNewDocenteName("");
-      setNewEscuela("");
-      setNewCurso("");
-    } catch (err) {
-      console.error("Error creando docente:", err);
-      alert("No se pudo crear el docente.");
     }
   };
 
@@ -435,9 +400,6 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
-          <button onClick={() => setShowDocenteModal(true)} style={{ backgroundColor: "#10b981", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
-            ➕ Crear Docente
-          </button>
           <button onClick={handleExportData} style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
             📊 Exportar CSV
           </button>
@@ -507,12 +469,12 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
       </section>
 
       {/* ========================================================================= */}
-      {/* SECTOR 2: PROFES */}
+      {/* SECTOR 2: PROFES Y SUS ALUMNOS ASIGNADOS */}
       {/* ========================================================================= */}
       <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
           <h2 style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>
-            2️⃣ PROFES ({docentes.length} Tarjetas)
+            2️⃣ PROFES Y SUS ALUMNOS ASIGNADOS ({docentes.length} Tarjetas)
           </h2>
 
           {/* BOTÓN ASIGNAR TILDADOS */}
@@ -537,43 +499,58 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
         </div>
 
         <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
-          Hacé clic sobre la tarjeta de un docente para seleccionarlo como <strong>docente destino</strong>.
+          Hacé clic sobre la tarjeta de un docente para seleccionarlo como <strong>docente destino</strong>. Cada tarjeta muestra sus indicadores de desempeño y la sub-lista de sus alumnos asignados.
         </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "12px", maxHeight: "400px", overflowY: "auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "16px", maxHeight: "500px", overflowY: "auto" }}>
           {docentes.length === 0 ? (
             <div style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "20px", border: "1px dashed #1e293b", borderRadius: "8px", gridColumn: "1 / -1" }}>
-              No hay docentes creados. Tocá "➕ Crear Docente" arriba para habilitar uno.
+              No hay docentes creados. Se registrarán automáticamente cuando ingresen por primera vez a su panel.
             </div>
           ) : (
             docentes.map((docItem) => {
               const isSelected = targetDocenteId === docItem.id;
               const isDuplicated = isDocenteDuplicado(docItem);
-              const assignedCount = getAlumnosCountForDocente(docItem.id);
+              
+              // Alumnos asignados a este docente
+              const assignedStudents = alumnos.filter((a) => a.docenteId === docItem.id);
+              const assignedCount = assignedStudents.length;
+
+              // Indicadores por tarjeta
+              const atLeastOneCount = assignedStudents.filter(
+                (a) => Array.isArray(a.misionesCompletadas) && a.misionesCompletadas.length > 0
+              ).length;
+              const badgeCount = assignedStudents.filter((a) => a.badgeEarned).length;
+
+              const pctAtLeastOne = assignedCount > 0 ? Math.round((atLeastOneCount / assignedCount) * 100) : 0;
+              const pctBadge = assignedCount > 0 ? Math.round((badgeCount / assignedCount) * 100) : 0;
 
               return (
                 <div
                   key={docItem.id}
                   onClick={() => setTargetDocenteId(docItem.id)}
                   style={{
-                    backgroundColor: isSelected ? "rgba(16, 185, 129, 0.15)" : "#020617",
+                    backgroundColor: isSelected ? "rgba(16, 185, 129, 0.12)" : "#020617",
                     border: isSelected ? "2px solid #10b981" : "1px solid #1e293b",
                     borderRadius: "10px",
                     padding: "14px",
                     cursor: "pointer",
                     position: "relative",
-                    transition: "all 0.2s"
+                    display: "flex",
+                    flexDirection: "column",
+                    justify: "space-between"
                   }}
                 >
-                  {/* ETIQUETA DE DUPLICADO */}
+                  {/* ETIQUETA AMARILLA DE DUPLICADO */}
                   {isDuplicated && (
                     <span style={{ position: "absolute", top: "10px", right: "10px", backgroundColor: "#f59e0b", color: "#000", fontSize: "10px", fontWeight: "bold", padding: "2px 6px", borderRadius: "4px" }}>
                       ⚠️ posible duplicado
                     </span>
                   )}
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                    <div>
+                  <div>
+                    {/* DATOS DOCENTE */}
+                    <div style={{ marginBottom: "8px" }}>
                       <strong style={{ color: isSelected ? "#4ade80" : "#38bdf8", fontSize: "15px" }}>
                         👩‍🏫 {docItem.nombre}
                       </strong>
@@ -581,28 +558,106 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                         {docItem.escuela} · {docItem.curso || "1° Año"}
                       </div>
                     </div>
-                  </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px", borderTop: "1px solid #1e293b", paddingTop: "8px" }}>
-                    <div style={{ fontSize: "11px", color: "#f59e0b", fontFamily: "monospace" }}>
-                      Código: <strong>{docItem.codigoAcceso || "------"}</strong>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                      <span style={{ backgroundColor: "#0f172a", color: "#38bdf8", padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold" }}>
-                        {assignedCount} Alumno(s)
+                    {/* LÍNEA DE CÓDIGO Y ACCIÓN ELIMINAR PROFE */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", backgroundColor: "#0f172a", padding: "6px 10px", borderRadius: "6px" }}>
+                      <span style={{ fontSize: "11px", color: "#f59e0b", fontFamily: "monospace" }}>
+                        Código: <strong>{docItem.codigoAcceso || "------"}</strong>
                       </span>
-
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteDocente(docItem);
                         }}
                         title="Eliminar profe y liberar sus alumnos"
-                        style={{ backgroundColor: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}
+                        style={{ backgroundColor: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid #ef4444", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}
                       >
                         🗑 Eliminar profe
                       </button>
+                    </div>
+
+                    {/* CONTADORES SIMPLE KPI PER DOCENTE */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "12px" }}>
+                      <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", padding: "6px", borderRadius: "6px", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "#94a3b8" }}>≥1 Misión Completa</div>
+                        <div style={{ fontSize: "14px", fontWeight: "bold", color: "#38bdf8" }}>{pctAtLeastOne}%</div>
+                      </div>
+                      <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", padding: "6px", borderRadius: "6px", textAlign: "center" }}>
+                        <div style={{ fontSize: "10px", color: "#94a3b8" }}>Con Insignia</div>
+                        <div style={{ fontSize: "14px", fontWeight: "bold", color: "#c084fc" }}>{pctBadge}%</div>
+                      </div>
+                    </div>
+
+                    {/* SUB-LISTA DE ALUMNOS ASIGNADOS */}
+                    <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "8px", padding: "10px" }}>
+                      <div style={{ fontSize: "11px", fontWeight: "bold", color: "#cbd5e1", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                        <span>Alumnos Asignados:</span>
+                        <span style={{ color: "#38bdf8" }}>{assignedCount} alumnos</span>
+                      </div>
+
+                      {assignedCount === 0 ? (
+                        <div style={{ fontStyle: "italic", color: "#64748b", fontSize: "11px", padding: "6px 0" }}>
+                          Sin alumnos asignados a este docente.
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "180px", overflowY: "auto" }}>
+                          {assignedStudents.map((al) => {
+                            const misionesStr = Array.isArray(al.misionesCompletadas) && al.misionesCompletadas.length > 0
+                              ? `${al.misionesCompletadas.length}/4 (${al.misionesCompletadas.join(", ").toUpperCase()})`
+                              : "0/4";
+
+                            return (
+                              <div
+                                key={al.id}
+                                style={{
+                                  backgroundColor: "#020617",
+                                  border: "1px solid #334155",
+                                  borderRadius: "6px",
+                                  padding: "6px 8px",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  fontSize: "11px"
+                                }}
+                              >
+                                <div>
+                                  <strong style={{ color: "#f8fafc" }}>{al.nickname || "Alumno"}</strong>
+                                  <div style={{ fontSize: "10px", color: "#94a3b8" }}>
+                                    ⚡ <strong style={{ color: "#f59e0b" }}>{al.xpTotal || 0} XP</strong> · Misiones: <span style={{ color: "#38bdf8" }}>{misionesStr}</span>
+                                    {al.badgeEarned && <span style={{ color: "#c084fc", marginLeft: "4px" }}>🏆 Insignia</span>}
+                                  </div>
+                                </div>
+
+                                <div style={{ display: "flex", gap: "4px" }}>
+                                  {/* DESVINCULAR */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDesvincularStudent(al.id, al.nickname);
+                                    }}
+                                    title="Volver a la lista de alumnos a designar"
+                                    style={{ backgroundColor: "rgba(251, 146, 60, 0.15)", color: "#fb923c", border: "1px solid #fb923c", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "10px" }}
+                                  >
+                                    ↩ Desvincular
+                                  </button>
+
+                                  {/* ELIMINAR */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteStudent(al.id, al.nickname);
+                                    }}
+                                    title="Eliminar ingreso ficticio"
+                                    style={{ backgroundColor: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid #ef4444", padding: "2px 6px", borderRadius: "4px", fontWeight: "bold", cursor: "pointer", fontSize: "10px" }}
+                                  >
+                                    ✖
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -613,96 +668,12 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
       </section>
 
       {/* ========================================================================= */}
-      {/* SECTOR 3: ALUMNOS ASIGNADOS */}
-      {/* ========================================================================= */}
-      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-          <h2 style={{ color: "#10b981", margin: 0, fontSize: "18px" }}>
-            3️⃣ ALUMNOS ASIGNADOS ({alumnosAsignados.length})
-          </h2>
-          <span style={{ fontSize: "11px", color: "#94a3b8" }}>
-            Estudiantes vinculados activamente a un docente registrado
-          </span>
-        </div>
-
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid #1e293b", color: "#64748b", textAlign: "left" }}>
-                <th style={{ padding: "10px" }}>Alumno</th>
-                <th style={{ padding: "10px" }}>Profe / Curso</th>
-                <th style={{ padding: "10px" }}>XP</th>
-                <th style={{ padding: "10px" }}>Misiones</th>
-                <th style={{ padding: "10px", textAlign: "center" }}>Acciones Distinctas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {alumnosAsignados.length === 0 ? (
-                <tr>
-                  <td colSpan="5" style={{ fontStyle: "italic", color: "#64748b", padding: "20px", textAlign: "center" }}>
-                    No hay alumnos asignados a docentes actualmente.
-                  </td>
-                </tr>
-              ) : (
-                alumnosAsignados.map((al) => {
-                  const docAssigned = docentes.find((d) => d.id === al.docenteId);
-                  const misionesStr = Array.isArray(al.misionesCompletadas) && al.misionesCompletadas.length > 0
-                    ? al.misionesCompletadas.join(", ").toUpperCase()
-                    : "Ninguna";
-
-                  return (
-                    <tr key={al.id} style={{ borderBottom: "1px solid #020617" }}>
-                      <td style={{ padding: "10px" }}>
-                        <strong style={{ color: "#f8fafc" }}>{al.nickname || "Alumno"}</strong>
-                        <div style={{ fontSize: "11px", color: "#94a3b8" }}>{al.escuela || "Escuela"}</div>
-                      </td>
-                      <td style={{ padding: "10px", color: "#4ade80", fontWeight: "bold" }}>
-                        👩‍🏫 {docAssigned ? docAssigned.nombre : "Profe"}<br />
-                        <span style={{ fontSize: "10px", color: "#64748b" }}>{docAssigned?.curso || al.curso || "1° Año"}</span>
-                      </td>
-                      <td style={{ padding: "10px" }}>
-                        <strong style={{ color: "#f59e0b" }}>⚡ {al.xpTotal || 0} XP</strong>
-                      </td>
-                      <td style={{ padding: "10px", color: "#38bdf8" }}>
-                        {misionesStr}
-                      </td>
-                      <td style={{ padding: "10px", textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
-                          {/* ACCIÓN 1: DESVINCULAR (Vuelve a alumnos a designar) */}
-                          <button
-                            onClick={() => handleDesvincularStudent(al.id, al.nickname)}
-                            title="Volver a la lista de alumnos a designar"
-                            style={{ backgroundColor: "rgba(251, 146, 60, 0.15)", color: "#fb923c", border: "1px solid #fb923c", padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}
-                          >
-                            ↩ Desvincular
-                          </button>
-
-                          {/* ACCIÓN 2: ELIMINAR (Borra el ingreso fallido) */}
-                          <button
-                            onClick={() => handleDeleteStudent(al.id, al.nickname)}
-                            title="Eliminar definitivamente el ingreso ficticio"
-                            style={{ backgroundColor: "rgba(239, 68, 68, 0.15)", color: "#ef4444", border: "1px solid #ef4444", padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "11px" }}
-                          >
-                            ✖ Eliminar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* SECTOR 4: TELEMETRÍA */}
+      {/* SECTOR 3: TELEMETRÍA */}
       {/* ========================================================================= */}
       <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
           <h2 style={{ color: "#c084fc", margin: 0, fontSize: "18px", display: "flex", alignItems: "center", gap: "10px" }}>
-            4️⃣ TELEMETRÍA xAPI EN TIEMPO REAL ({liveLogs.length} Eventos)
+            3️⃣ TELEMETRÍA xAPI EN TIEMPO REAL ({liveLogs.length} Eventos)
           </h2>
           <span style={{ fontSize: "11px", backgroundColor: dbStatus === "CONECTADO" ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)", color: dbStatus === "CONECTADO" ? "#4ade80" : "#ef4444", border: `1px solid ${dbStatus === "CONECTADO" ? "#10b981" : "#ef4444"}`, padding: "4px 10px", borderRadius: "8px", fontWeight: "bold" }}>
             ● {dbStatus}
@@ -714,7 +685,7 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
 
         <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "8px", padding: "15px", maxHeight: "300px", overflowY: "auto", fontFamily: "monospace", fontSize: "12px" }}>
           {liveLogs.length === 0 ? (
-            <div style={{ color: "#64748b", fontStyle: "italic" }}>
+            <div style={{ fontStyle: "italic", color: "#64748b" }}>
               Esperando eventos de telemetría en tiempo real...
             </div>
           ) : (
@@ -729,38 +700,6 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
           )}
         </div>
       </section>
-
-      {/* MODAL CREAR DOCENTE */}
-      {showAddDocenteModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.75)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
-          <div style={{ backgroundColor: "#0f172a", border: "1px solid #38bdf8", borderRadius: "16px", padding: "25px", maxWidth: "450px", width: "100%" }}>
-            <h3 style={{ color: "#38bdf8", marginTop: 0 }}>Habilitar Nuevo Docente / Escuela</h3>
-            <form onSubmit={handleCreateDocente} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>Nombre del Docente:</label>
-                <input type="text" placeholder="Ej: Prof. María Eugenia" value={newDocenteName} onChange={(e) => setNewDocenteName(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", backgroundColor: "#020617", color: "#fff" }} required />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>Escuela / IPEM:</label>
-                <input type="text" placeholder="Ej: IPEM 35 Ricardo Rojas" value={newEscuela} onChange={(e) => setNewEscuela(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", backgroundColor: "#020617", color: "#fff" }} required />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>Curso a cargo:</label>
-                <input type="text" placeholder="Ej: 1° Año B" value={newCurso} onChange={(e) => setNewCurso(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", backgroundColor: "#020617", color: "#fff" }} required />
-              </div>
-
-              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                <button type="submit" style={{ flex: 1, padding: "10px", borderRadius: "8px", backgroundColor: "#10b981", color: "#fff", border: "none", fontWeight: "bold", cursor: "pointer" }}>
-                  Habilitar
-                </button>
-                <button type="button" onClick={() => setShowDocenteModal(false)} style={{ padding: "10px 15px", borderRadius: "8px", backgroundColor: "transparent", color: "#94a3b8", border: "1px solid #334155", cursor: "pointer" }}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
