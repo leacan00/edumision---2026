@@ -195,7 +195,7 @@ const MathGenerator = {
         part3: {
           prompt: "Parte 3 (Evaluación de Capacidad): Para el despegue se requiere un mínimo de 2/3 de carga. Disponemos de 3/4 (que equivale a 9/12). Evaluá la situación y elegí la conclusión matemática correcta:",
           rawOptions: [
-            { value: "Alcanza para el despegue, porque 3/4 (9/12) es mayor que el mínimo de 2/3 (8/12).", correct: true, justificationType: "Master", fb: "¡Excelente fundamentación! Comparaste ambas fracciones sobre la misma base de doceavos." },
+            { value: "Alcanza para el despegue, porque 3/4 (9/12) es mayor que el mínimo de 2/3 (8/12).", correct: true, fb: "¡Excelente fundamentación! Comparaste ambas fracciones sobre la misma base de doceavos." },
             { value: "Alcanza para el despegue, por estimación directa de la carga disponible.", correct: false, errorCode: "ERR_COMPARE", fb: "⚠️ Para fundamentar la decisión se requiere comparar formalmente las fracciones convertidas a la misma base (9/12 frente a 8/12)." },
             { value: "No alcanza, porque 3/4 es menor que 2/3.", correct: false, errorCode: "ERR_COMPARE", fb: "Convertí ambas a doceavos: 3/4 = 9/12 y 2/3 = 8/12 (9/12 es mayor)." },
             { value: "No alcanza, porque se necesita llenar el tanque completo.", correct: false, errorCode: "ERR_COMPARE", fb: "El mínimo requerido era 2/3, no el tanque lleno." },
@@ -234,7 +234,7 @@ const MathGenerator = {
         part3: {
           prompt: "Parte 3 (Evaluación de Capacidad): Para el despegue se requiere un mínimo de 2/3 (4/6) de carga. Tenemos 5/6. Evaluá la situación y elegí la conclusión matemática correcta:",
           rawOptions: [
-            { value: "Alcanza para el despegue, porque tenemos 5/6 y el mínimo 2/3 equivale a 4/6 (5/6 > 4/6).", correct: true, justificationType: "Master", fb: "¡Excelente fundamentación! Comparando sobre sextos: 5/6 es mayor que 4/6." },
+            { value: "Alcanza para el despegue, porque tenemos 5/6 y el mínimo 2/3 equivale a 4/6 (5/6 > 4/6).", correct: true, fb: "¡Excelente fundamentación! Comparando sobre sextos: 5/6 es mayor que 4/6." },
             { value: "Alcanza para el despegue, por cálculo estimado de la reserva.", correct: false, errorCode: "ERR_COMPARE", fb: "⚠️ Para fundamentar la decisión se requiere comparar formalmente las fracciones convertidas a la misma base (5/6 frente a 4/6)." },
             { value: "No alcanza, porque 5/6 es menor que 4/6.", correct: false, errorCode: "ERR_COMPARE", fb: "5 es mayor que 4 sobre el mismo denominador 6." },
             { value: "No alcanza, porque falta 1/6.", correct: false, errorCode: "ERR_GENERIC", fb: "El mínimo era 4/6, no 6/6." },
@@ -468,9 +468,11 @@ export default function App() {
   const [perfilAlumno, setPerfilAlumno] = useState({
     nickname: "",
     curso: "1° Año",
-    escuela: "",
+    escuela: "IPEM",
     edad: "12"
   });
+  const [tipoEscuela, setTipoEscuela] = useState("IPEM");
+  const [escuelaOtra, setEscuelaOtra] = useState("");
 
   // Cuestionario de Cierre
   const [encuestaCierre, setPerfilCierre] = useState({
@@ -503,7 +505,6 @@ export default function App() {
   const [misionesConError, setMisionesConError] = useState([]);
   const [badgeEarned, setBadgeEarned] = useState(false);
   const [habilidadDesbloqueada, setHabilidadDesbloqueada] = useState(null);
-  const [justificationQuality, setJustificationQuality] = useState(null);
   const m4TimeoutRef = useRef(null);
 
   // Datos Dinámicos de Misión
@@ -568,10 +569,12 @@ export default function App() {
     // Cuestionario 1: Guardar Perfil y Cargar desde Firestore
   const handleGuardarPerfilIngreso = async (e) => {
     e.preventDefault();
-    if (!perfilAlumno.nickname || !perfilAlumno.escuela) {
+    const finalEscuela = tipoEscuela === "Otra" ? escuelaOtra.trim() : tipoEscuela;
+    if (!perfilAlumno.nickname || !finalEscuela) {
       alert("Por favor completa tu Nickname y la Escuela.");
       return;
     }
+    perfilAlumno.escuela = finalEscuela;
 
     if (!db) {
       alert("No pudimos conectar con la base de datos. Revisá tu internet e intentá de nuevo.");
@@ -589,13 +592,11 @@ export default function App() {
         const completadas = data.misionesCompletadas || [];
         const conError = data.misionesConError || [];
         const badge = !!data.badgeEarned;
-        const quality = data.justificationQuality || null;
 
         setXpTotal(loadedXp);
         setMisionesCompletadas(completadas);
         setMisionesConError(conError);
         setBadgeEarned(badge);
-        setJustificationQuality(quality);
         if (data.statsPorMision) {
           setStatsPorMision(data.statsPorMision);
         }
@@ -621,12 +622,12 @@ export default function App() {
           nickname: perfilAlumno.nickname,
           escuela: perfilAlumno.escuela,
           curso: perfilAlumno.curso || "1er Año",
+          edad: perfilAlumno.edad || "12",
           docenteId: null,
           xpTotal: 0,
           misionesCompletadas: [],
           misionesConError: [],
           badgeEarned: false,
-          justificationQuality: null,
           statsPorMision: {
             m1: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
             m2: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
@@ -643,7 +644,6 @@ export default function App() {
         setMisionesCompletadas([]);
         setMisionesConError([]);
         setBadgeEarned(false);
-        setJustificationQuality(null);
         setTituloExplorador("Explorador/a Novato/a");
 
         setAlumnoId(aid);
@@ -671,7 +671,6 @@ export default function App() {
           misionesCompletadas,
           misionesConError,
           badgeEarned,
-          justificationQuality,
           statsPorMision,
           actualizadoEn: serverTimestamp()
         });
@@ -685,7 +684,7 @@ export default function App() {
     };
 
     syncProgreso();
-  }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, justificationQuality, statsPorMision]);
+  }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, statsPorMision]);
 
   // 📡 1) Escuchar cambios en alumnos/{alumnoId} para mantener docenteId actualizado
   useEffect(() => {
@@ -882,10 +881,7 @@ export default function App() {
       addBitacora(`✅ Acierto en ${misionActual.toUpperCase()}: ${opt.value}`, false, null);
 
       if (misionActual === "m4" && m4StepIndex === 3) {
-        if (opt.justificationType) {
-          setJustificationQuality(opt.justificationType);
-        }
-        addBitacora(`✅ Acierto en M4 Parte 3 (${opt.justificationType || "Master"}): ${opt.value}`);
+        addBitacora(`✅ Acierto en M4 Parte 3: ${opt.value}`);
       }
 
       if (misionActual !== "m4") {
@@ -995,7 +991,7 @@ export default function App() {
                     onChange={(e) => setPerfilAlumno({ ...perfilAlumno, curso: e.target.value })}
                     style={styles.formSelect}
                   >
-                    <option value="1° Año">1° Año A/B/C</option>
+                    <option value="1° Año">1° Año</option>
                     <option value="2° Año">2° Año</option>
                     <option value="3° Año">3° Año</option>
                   </select>
@@ -1013,16 +1009,43 @@ export default function App() {
               </div>
 
               <div>
-                <label style={styles.fieldLabel}>Escuela Declarada:</label>
-                <input
-                  type="text"
-                  placeholder="Ej: IPEM 268, Colegio Manuel Belgrano"
-                  value={perfilAlumno.escuela}
-                  onChange={(e) => setPerfilAlumno({ ...perfilAlumno, escuela: e.target.value })}
-                  style={styles.formInput}
-                  required
-                />
+                <label style={styles.fieldLabel}>Escuela / Institución:</label>
+                <select
+                  value={tipoEscuela}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTipoEscuela(val);
+                    const finalEscuela = val === "Otra" ? escuelaOtra : val;
+                    setPerfilAlumno({ ...perfilAlumno, escuela: finalEscuela });
+                  }}
+                  style={styles.formSelect}
+                >
+                  <option value="IPEM">IPEM</option>
+                  <option value="IPET">IPET</option>
+                  <option value="CENMA">CENMA</option>
+                  <option value="PROA">PROA</option>
+                  <option value="Privada">Privada</option>
+                  <option value="Otra">Otra</option>
+                </select>
               </div>
+
+              {tipoEscuela === "Otra" && (
+                <div style={{ marginTop: "10px" }}>
+                  <label style={styles.fieldLabel}>Nombre de la Escuela:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Colegio Manuel Belgrano"
+                    value={escuelaOtra}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEscuelaOtra(val);
+                      setPerfilAlumno({ ...perfilAlumno, escuela: val });
+                    }}
+                    style={styles.formInput}
+                    required
+                  />
+                </div>
+              )}
 
               <button type="submit" style={styles.btnFormSubmit}>
                 🚀 REGISTRAR CABINA E INICIAR
