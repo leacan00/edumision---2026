@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { db } from "./firebase";
 import {
   collection,
+  getDocs,
   onSnapshot,
   doc,
   updateDoc,
@@ -198,22 +199,38 @@ export default function App() {
     }
   };
 
-  // Acciones en Sector 1 & 2: Eliminar Ingreso Fallido
+  // Acciones en Sector 1 & 2: Eliminar Ingreso Fallido e Historial en Bitácora
   const handleDeleteStudent = async (alumnoId, studentNick) => {
     if (!alumnoId || !db) return;
     const confirm = window.confirm(
       `¿Seguro que querés ELIMINAR definitivamente el registro de "${studentNick}"?
 
-Esta acción borrará la cuenta en caso de ingreso fallido o ficticio.`
+Esta acción borrará la cuenta del alumno en el servidor y TODO su historial en la bitácora.`
     );
     if (!confirm) return;
 
     try {
-      await deleteDoc(doc(db, "alumnos", alumnoId));
+      // 1. Buscar todos los registros de la bitácora asociados a este alumnoId
+      const qBitacoraAlumno = query(
+        collection(db, "bitacora_alumnos"),
+        where("alumnoId", "==", alumnoId)
+      );
+      const logsSnap = await getDocs(qBitacoraAlumno);
+
+      // 2. Ejecutar borrado atómico en lote (Batch): el alumno en 'alumnos' y sus eventos en 'bitacora_alumnos'
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "alumnos", alumnoId));
+
+      logsSnap.forEach((logDoc) => {
+        batch.delete(logDoc.ref);
+      });
+
+      await batch.commit();
+
       setSelectedStudentIds((prev) => prev.filter((id) => id !== alumnoId));
-      showToast(`❌ Alumno "${studentNick}" eliminado de la base de datos.`);
+      showToast(`❌ Alumno "${studentNick}" e historial de bitácora borrados del servidor.`);
     } catch (err) {
-      console.error("Error eliminando alumno:", err);
+      console.error("Error eliminando alumno e historial:", err);
       alert("No se pudo eliminar el registro del alumno.");
     }
   };
