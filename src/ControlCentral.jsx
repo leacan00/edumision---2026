@@ -36,6 +36,113 @@ function slug(text) {
 // ==========================================
 // 🛠️ HELPER EXPORTADOR A EXCEL / LIBREOFFICE (.CSV NATIVO)
 // ==========================================
+// ==========================================
+// 🛠️ HELPER EXPORTADOR INTERACTIVO .XLS / HTML FORMATEADO PARA EXCEL
+// ==========================================
+const exportToFormattedExcel = (filename, docentes, alumnos) => {
+  const bom = "\uFEFF";
+  
+  const totalAlumnos = alumnos.length;
+  const asignadosCount = alumnos.filter((a) => a.docenteId).length;
+  const conInsigniaCount = alumnos.filter((a) => a.badgeEarned).length;
+  const totalXp = alumnos.reduce((acc, a) => acc + (a.xpTotal || 0), 0);
+  const avgXp = totalAlumnos ? Math.round(totalXp / totalAlumnos) : 0;
+
+  const htmlContent = `${bom}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 20px; }
+    .header-title { font-size: 20px; font-weight: bold; color: #0284c7; margin-bottom: 4px; }
+    .header-sub { font-size: 12px; color: #64748b; margin-bottom: 16px; }
+    
+    .kpi-table { border-collapse: collapse; margin-bottom: 20px; }
+    .kpi-table td { border: 1px solid #cbd5e1; padding: 10px 16px; text-align: center; background-color: #f8fafc; }
+    .kpi-label { font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; }
+    .kpi-val { font-size: 18px; color: #0284c7; font-weight: bold; }
+    
+    .data-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    .data-table th { background-color: #0284c7; color: #ffffff; font-weight: bold; padding: 10px; border: 1px solid #0369a1; text-align: left; }
+    .data-table td { padding: 8px 10px; border: 1px solid #e2e8f0; vertical-align: middle; }
+    .data-table tr:nth-child(even) { background-color: #f8fafc; }
+    
+    .tag-assigned { background-color: #dcfce7; color: #15803d; font-weight: bold; padding: 3px 8px; border-radius: 4px; border: 1px solid #86efac; }
+    .tag-unassigned { background-color: #ffedd5; color: #c2410c; font-weight: bold; padding: 3px 8px; border-radius: 4px; border: 1px solid #fdba74; }
+    .tag-badge { background-color: #fef3c7; color: #b45309; font-weight: bold; padding: 3px 8px; border-radius: 4px; border: 1px solid #fcd34d; }
+    .tag-pending { background-color: #f1f5f9; color: #64748b; padding: 3px 8px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="header-title">🏛️ EduMisión Córdoba — Reporte Consolidado Provincial</div>
+  <div class="header-sub">Generado el: ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR')}</div>
+
+  <table class="kpi-table">
+    <tr>
+      <td><div class="kpi-label">Total Alumnos</div><div class="kpi-val">${totalAlumnos}</div></td>
+      <td><div class="kpi-label">Asignados a Docente</div><div class="kpi-val">${asignadosCount}</div></td>
+      <td><div class="kpi-label">Insignias Otorgadas</div><div class="kpi-val">${conInsigniaCount}</div></td>
+      <td><div class="kpi-label">Promedio XP</div><div class="kpi-val">${avgXp} XP</div></td>
+    </tr>
+  </table>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID Alumno</th>
+        <th>Nickname</th>
+        <th>Escuela</th>
+        <th>Curso</th>
+        <th>Docente Asignado</th>
+        <th>Código Profe</th>
+        <th>XP Total</th>
+        <th>Misiones Completadas</th>
+        <th>% Avance</th>
+        <th>Estado Insignia</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${alumnos.map((a) => {
+        const docAssigned = docentes.find((d) => d.id === a.docenteId);
+        const completadas = Array.isArray(a.misionesCompletadas) ? a.misionesCompletadas : [];
+        const mCount = completadas.length;
+        const pctAvance = Math.round((mCount / 4) * 100);
+        const misionesStr = mCount > 0 ? `${mCount}/4 (${completadas.join(", ").toUpperCase()})` : "0/4 (Sin iniciar)";
+        const docenteStr = docAssigned ? docAssigned.nombre : "A designar (Sin asignar)";
+        const codigoStr = docAssigned ? (docAssigned.codigoAcceso || "-") : "-";
+
+        return `
+          <tr>
+            <td>${a.id}</td>
+            <td><strong>${a.nickname || "Alumno"}</strong></td>
+            <td>${a.escuela || "-"}</td>
+            <td>${a.curso || "-"}</td>
+            <td>${docAssigned ? `<span class="tag-assigned">👩‍🏫 ${docenteStr}</span>` : `<span class="tag-unassigned">⚡ ${docenteStr}</span>`}</td>
+            <td><code>${codigoStr}</code></td>
+            <td><strong>${a.xpTotal || 0} XP</strong></td>
+            <td>${misionesStr}</td>
+            <td><strong>${pctAvance}%</strong></td>
+            <td>${a.badgeEarned ? `<span class="tag-badge">🏆 Otorgada</span>` : `<span class="tag-pending">En proceso</span>`}</td>
+          </tr>
+        `;
+      }).join("")}
+    </tbody>
+  </table>
+</body>
+</html>`;
+
+  const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename.endsWith(".xls") ? filename : `${filename}.xls`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+
 const exportToExcelCSV = (filename, headers, rows) => {
   const bom = "﻿";
   const csvContent =
@@ -165,7 +272,7 @@ export default function App() {
     };
   }, [isAuthenticated]);
 
-  // 1) ALUMNOS A DESIGNAR: Sin docenteId O con docenteId que no existe en "docentes"
+  // 1. ALUMNOS A DESIGNAR: Sin docenteId O con docenteId que no existe en "docentes"
   const docentesIdsSet = new Set(docentes.map((d) => d.id));
   const alumnosADesignar = alumnos.filter(
     (a) => !a.docenteId || !docentesIdsSet.has(a.docenteId)
@@ -322,46 +429,10 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
     }
   };
 
-  // Exportación CSV
+  // Exportación de Reporte Formateado (.XLS Excel) y CSV
   const handleExportData = () => {
-    const headers = [
-      "ID Alumno",
-      "Nickname",
-      "Escuela",
-      "Curso",
-      "Docente Asignado",
-      "Código Acceso Docente",
-      "XP Total",
-      "Misiones Completadas",
-      "Insignia"
-    ];
-
-    const rows = alumnos.map((a) => {
-      const docAssigned = docentes.find((d) => d.id === a.docenteId);
-      const completadasStr = Array.isArray(a.misionesCompletadas)
-        ? a.misionesCompletadas.join(", ").toUpperCase()
-        : "Ninguna";
-      const insigniaStr = a.badgeEarned ? "Otorgada" : "En proceso";
-
-      return [
-        a.id,
-        a.nickname || "-",
-        a.escuela || "-",
-        a.curso || "-",
-        docAssigned ? docAssigned.nombre : "A designar (Sin Asignar)",
-        docAssigned ? docAssigned.codigoAcceso || "-" : "-",
-        a.xpTotal || 0,
-        completadasStr,
-        insigniaStr
-      ];
-    });
-
-    exportToExcelCSV(
-      `EduMision_ControlCentral_Reporte_${new Date().toISOString().slice(0, 10)}.csv`,
-      headers,
-      rows
-    );
-    showToast("📊 Reporte CSV exportado con éxito.");
+    exportToFormattedExcel(`EduMision_ControlCentral_Reporte_${new Date().toISOString().slice(0, 10)}.xls`, docentes, alumnos);
+    showToast("📊 Reporte Formateado (.xls) exportado con éxito para Excel.");
   };
 
   // 🔒 PANTALLA DE BLOQUEO POR PIN
