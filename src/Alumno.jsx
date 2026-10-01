@@ -336,7 +336,7 @@ const hyperspaceStyles = {
 // ==========================================
 // 🤖 EDUBOT (COPILOTO ROBOT)
 // ==========================================
-function EduBotCopilot({ mood, message, onClickHelp, errorWarning }) {
+function EduBotCopilot({ mood, message, onClickHelp, onClickQueMeEquivoque, errorWarning }) {
   return (
     <div style={botStyles.container}>
       <div style={botStyles.header}>
@@ -357,9 +357,14 @@ function EduBotCopilot({ mood, message, onClickHelp, errorWarning }) {
         <div style={botStyles.titleBlock}>
           <div style={botStyles.copilotName}>🤖 EDUBOT (Copiloto)</div>
           <div style={botStyles.copilotSub}>IA de Asistencia a Bordo</div>
-          <button onClick={onClickHelp} style={botStyles.hintBtn} type="button">
-            💡 Pedir pista a EduBot
-          </button>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
+            <button onClick={onClickHelp} style={botStyles.hintBtn} type="button">
+              💡 Pedir pista
+            </button>
+            <button onClick={onClickQueMeEquivoque} style={botStyles.errorBtn} type="button">
+              🤔 ¿En qué me estoy equivocando?
+            </button>
+          </div>
         </div>
       </div>
 
@@ -419,8 +424,13 @@ const botStyles = {
   copilotName: { fontSize: "14px", fontWeight: "900", color: "#c084fc", letterSpacing: "0.5px" },
   copilotSub: { fontSize: "11px", color: "#94a3b8", marginBottom: "6px" },
   hintBtn: {
-    padding: "6px 12px", backgroundColor: "rgba(139, 92, 246, 0.2)",
+    padding: "6px 10px", backgroundColor: "rgba(139, 92, 246, 0.2)",
     border: "1px solid #8b5cf6", color: "#c084fc", borderRadius: "6px",
+    fontSize: "11px", fontWeight: "bold", cursor: "pointer"
+  },
+  errorBtn: {
+    padding: "6px 10px", backgroundColor: "rgba(251, 146, 60, 0.2)",
+    border: "1px solid #fb923c", color: "#fb923c", borderRadius: "6px",
     fontSize: "11px", fontWeight: "bold", cursor: "pointer"
   },
   speechBubble: { backgroundColor: "#02040e", border: "1px solid #1e293b", borderRadius: "8px", padding: "10px 12px" },
@@ -493,12 +503,25 @@ export default function App() {
   const [tituloExplorador, setTituloExplorador] = useState("Explorador/a Novato/a");
   
   const [docenteId, setDocenteId] = useState(null);
+  const [tiempoSesionTotalSegundos, setTiempoSesionTotalSegundos] = useState(0);
+  const [misionTimerRef, setMisionTimerRef] = useState(0);
+  const [showQueMeEquivoqueModal, setShowQueMeEquivoqueModal] = useState(false);
+  const [queMeEquivoqueTexto, setQueMeEquivoqueTexto] = useState("");
+
   const [statsPorMision, setStatsPorMision] = useState({
-    m1: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-    m2: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-    m3: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-    m4: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null }
+    m1: { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null },
+    m2: { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null },
+    m3: { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null },
+    m4: { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null }
   });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTiempoSesionTotalSegundos((prev) => prev + 1);
+      setMisionTimerRef((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const [xpTotal, setXpTotal] = useState(0);
   const [misionesCompletadas, setMisionesCompletadas] = useState([]);
@@ -597,6 +620,9 @@ export default function App() {
         setMisionesCompletadas(completadas);
         setMisionesConError(conError);
         setBadgeEarned(badge);
+        if (data.docenteId !== undefined) {
+          setDocenteId(data.docenteId || null);
+        }
         if (data.statsPorMision) {
           setStatsPorMision(data.statsPorMision);
         }
@@ -628,11 +654,12 @@ export default function App() {
           misionesCompletadas: [],
           misionesConError: [],
           badgeEarned: false,
+          tiempoSesionTotalSegundos: 0,
           statsPorMision: {
-            m1: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-            m2: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-            m3: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-            m4: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null }
+            m1: { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null },
+            m2: { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null },
+            m3: { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null },
+            m4: { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null }
           },
           creadoEn: serverTimestamp(),
           actualizadoEn: serverTimestamp()
@@ -672,6 +699,7 @@ export default function App() {
           misionesConError,
           badgeEarned,
           statsPorMision,
+          tiempoSesionTotalSegundos,
           actualizadoEn: serverTimestamp()
         });
       } catch (err) {
@@ -684,7 +712,7 @@ export default function App() {
     };
 
     syncProgreso();
-  }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, statsPorMision]);
+  }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, statsPorMision, tiempoSesionTotalSegundos]);
 
   // 📡 1) Escuchar cambios en alumnos/{alumnoId} para mantener docenteId actualizado
   useEffect(() => {
@@ -763,6 +791,7 @@ export default function App() {
       setFaseMision("inicio");
       setPasoDemo(1);
       setM4StepIndex(1);
+      setMisionTimerRef(0);
       setOpcionSeleccionada(null);
       setFeedback(null);
       setCopilotMood("idle");
@@ -796,8 +825,20 @@ export default function App() {
     addBitacora(`🔄 Nuevas operaciones generadas para ${misionActual.toUpperCase()}.`);
   };
 
-  // Otorgar XP con Caps Fijos
+  // Otorgar XP con Caps Fijos (Máximo 750 XP)
   const otorgarXP = (mId) => {
+    const timeSpent = misionTimerRef;
+    setStatsPorMision((prev) => {
+      const current = prev[mId] || { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null };
+      return {
+        ...prev,
+        [mId]: {
+          ...current,
+          segundosResolucion: current.segundosResolucion > 0 ? current.segundosResolucion : timeSpent
+        }
+      };
+    });
+
     if (!misionesCompletadas.includes(mId)) {
       const nuevasCompletadas = [...misionesCompletadas, mId];
       setMisionesCompletadas(nuevasCompletadas);
@@ -808,9 +849,9 @@ export default function App() {
       if (nuevasCompletadas.includes("m3")) sumaXP += 200;
       if (nuevasCompletadas.includes("m4")) sumaXP += 300;
 
-
-
       setXpTotal(sumaXP);
+
+      addBitacora(`🏆 Misión ${mId.toUpperCase()} completada con éxito en ${timeSpent}s. (+${mId === "m1" ? 100 : mId === "m2" ? 150 : mId === "m3" ? 200 : 300} XP)`, false, null, mId, sumaXP);
 
       if (nuevasCompletadas.length === 1) setTituloExplorador("Explorador/a de la Base");
       if (nuevasCompletadas.length === 2) setTituloExplorador("Explorador/a de Válvulas");
@@ -851,13 +892,13 @@ export default function App() {
 
     // Incremento de intentos y registro de error/ultimoError (CÓDIGO)
     setStatsPorMision((prev) => {
-      const current = prev[misionActual] || { intentos: 0, errores: 0, ayudas: 0, ultimoError: null };
+      const current = prev[misionActual] || { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null };
       if (opt.correct) {
         return {
           ...prev,
           [misionActual]: {
             ...current,
-            intentos: current.intentos + 1
+            intentosDesafio: (current.intentosDesafio || 0) + 1
           }
         };
       } else {
@@ -866,8 +907,8 @@ export default function App() {
           ...prev,
           [misionActual]: {
             ...current,
-            intentos: current.intentos + 1,
-            errores: current.errores + 1,
+            intentosDesafio: (current.intentosDesafio || 0) + 1,
+            errores: (current.errores || 0) + 1,
             ultimoError: errCode
           }
         };
@@ -931,12 +972,12 @@ export default function App() {
   const handlePedirPista = () => {
     // Sumar 1 a ayudas de la misión actual en statsPorMision
     setStatsPorMision((prev) => {
-      const current = prev[misionActual] || { intentos: 0, errores: 0, ayudas: 0, ultimoError: null };
+      const current = prev[misionActual] || { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null };
       return {
         ...prev,
         [misionActual]: {
           ...current,
-          ayudas: current.ayudas + 1
+          ayudas: (current.ayudas || 0) + 1
         }
       };
     });
@@ -950,6 +991,42 @@ export default function App() {
 
     setCopilotMsg(hint);
     addBitacora(`💡 Consultó pista en ${misionActual.toUpperCase()}`, false, null);
+  };
+
+  const handleConsultarQueMeEquivoque = () => {
+    const currentStats = statsPorMision[misionActual] || {};
+    const lastErr = currentStats.ultimoError;
+
+    setStatsPorMision((prev) => {
+      const current = prev[misionActual] || { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null };
+      return {
+        ...prev,
+        [misionActual]: {
+          ...current,
+          consultasQueMeEquivoque: (current.consultasQueMeEquivoque || 0) + 1
+        }
+      };
+    });
+
+    let explicacion = "";
+    if (!lastErr) {
+      explicacion = "¡Tus mandos están limpios, Explorador/a! No detecté desvíos en tus cálculos actuales. Hacé la cuenta en papel y elegí tu respuesta con confianza.";
+    } else if (lastErr === "ERR_DIRECT") {
+      explicacion = "Detecté que sumaste los números de abajo. Pensalo con una pizza 🍕: si comés 1 porción de 6 y luego 2 de 6, comiste 3 porciones de 6 (3/6). ¡La pizza entera no se convirtió en 12 porciones! El denominador indica el tamaño de la porción y no se suma.";
+    } else if (lastErr === "ERR_LCD") {
+      explicacion = "Detecté un desvío al cambiar de base. Ejemplo 🥤: Para sumar 1/2 con 1/4, convertimos 1/2 a cuartos. Si multiplicás el 2 de abajo por 2 para llegar a 4, obligatoriamente debés multiplicar el 1 de arriba por 2 (1/2 = 2/4). ¡No te olvides de transformar también el número de arriba!";
+    } else if (lastErr === "ERR_SIMP") {
+      explicacion = "Tu suma es correcta, pero la nave exige la fracción irreducible. Ejemplo 📦: Si obtenés 4/8, ambos números se pueden dividir por 4, quedando en 1/2. Buscá un número que divida exactamente arriba y abajo.";
+    } else if (lastErr === "ERR_COMPARE") {
+      explicacion = "¡Atención tripulante! No podemos comparar fracciones si sus partes están cortadas en tamaños distintos. 📱 Ejemplo Batería: Si tu batería está en 1/2 y la de tu amigo en 3/4, dividimos en cuartos: 1/2 son 2/4 (2 rayitas de 4) y 3/4 son 3 rayitas de 4. ¡Al tener el mismo número abajo (4), se ve claro que 3 es mayor que 2! 🍫 Ejemplo Chocolates: Si comés 1 pedazo de 2 (1/2), en una barra de 6 pedazos serían 3/6. Si otro comió 4/6, ¡comió más porque 4 pedazos de 6 es más que 3 de 6! 🎯 En tu misión: Llevá las dos fracciones al mismo número de abajo para poder comparar los números de arriba directamente.";
+    } else {
+      explicacion = "Detecté un desvío general de cálculo. Revisá la operación paso a paso con lápiz y papel antes de responder.";
+    }
+
+    setQueMeEquivoqueTexto(explicacion);
+    setShowQueMeEquivoqueModal(true);
+    setCopilotMood("thinking");
+    addBitacora(`🤔 Consultó '¿En qué me estoy equivocando?' en Misión ${misionActual.toUpperCase()}`, false, null);
   };
 
   return (
@@ -1310,7 +1387,13 @@ export default function App() {
                           {["1", "2", "3", "4", "5", "6"].map((num) => (
                             <button
                               key={num}
-                              onClick={() => setM2SimulacroNum(num)}
+                              onClick={() => {
+                              setM2SimulacroNum(num);
+                              setStatsPorMision((prev) => {
+                                const cur = prev[misionActual] || { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null };
+                                return { ...prev, [misionActual]: { ...cur, intentosSimulacro: (cur.intentosSimulacro || 0) + 1 } };
+                              });
+                            }}
                               style={{
                                 padding: "14px",
                                 borderRadius: "8px",
@@ -1363,7 +1446,13 @@ export default function App() {
                           {["1/2", "1/3", "3/6", "2/3", "1/6", "3/3"].map((frac) => (
                             <button
                               key={frac}
-                              onClick={() => setM3SimulacroAns(frac)}
+                              onClick={() => {
+                              setM3SimulacroAns(frac);
+                              setStatsPorMision((prev) => {
+                                const cur = prev[misionActual] || { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null };
+                                return { ...prev, [misionActual]: { ...cur, intentosSimulacro: (cur.intentosSimulacro || 0) + 1 } };
+                              });
+                            }}
                               style={{
                                 padding: "14px",
                                 borderRadius: "8px",
@@ -1623,6 +1712,7 @@ export default function App() {
                 mood={copilotMood}
                 message={copilotMsg}
                 onClickHelp={handlePedirPista}
+                onClickQueMeEquivoque={handleConsultarQueMeEquivoque}
                 errorWarning={errorWarning}
               />
 
@@ -1777,6 +1867,35 @@ export default function App() {
         </div>
       )}
 
+      {/* MODAL ANDAMIAJE METACOGNITIVO: ¿EN QUÉ ME ESTOY EQUIVOCANDO? */}
+      {showQueMeEquivoqueModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalCardWide}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "10px", marginBottom: "14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "28px" }}>🤔</span>
+                <h3 style={{ margin: 0, color: "#fb923c", fontSize: "16px", fontWeight: "bold" }}>
+                  EduBot · ¿En qué me estoy equivocando?
+                </h3>
+              </div>
+              <button onClick={() => setShowQueMeEquivoqueModal(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <div style={{ backgroundColor: "#02040e", border: "1px solid #38bdf8", borderRadius: "10px", padding: "16px", marginBottom: "16px" }}>
+              <p style={{ margin: 0, fontSize: "14px", color: "#f8fafc", lineHeight: "1.6" }}>
+                {queMeEquivoqueTexto}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowQueMeEquivoqueModal(false)}
+              style={styles.btnFormSubmit}
+            >
+              ➔ ¡ENTENDIDO, VOY A REVISAR EN MI CUADERNO!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
