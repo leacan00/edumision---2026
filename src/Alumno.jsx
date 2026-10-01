@@ -453,7 +453,7 @@ function slug(text) {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .replace(/_+/g, "_");
@@ -714,7 +714,7 @@ export default function App() {
     syncProgreso();
   }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, statsPorMision, tiempoSesionTotalSegundos]);
 
-  // 📡 1) Escuchar cambios en alumnos/{alumnoId} para mantener docenteId actualizado
+  // 📡 1. Escuchar cambios en alumnos/{alumnoId} para mantener docenteId actualizado
   useEffect(() => {
     if (!perfilCargado || !alumnoId || !db) return;
 
@@ -732,7 +732,7 @@ export default function App() {
     return () => unsubAlumno();
   }, [perfilCargado, alumnoId]);
 
-  // 📡 2) Si hay docenteId, escuchar docentes/{docenteId} para "Transmisión de tu Profe en Vivo"
+  // 📡 2. Si hay docenteId, escuchar docentes/{docenteId} para "Transmisión de tu Profe en Vivo"
   useEffect(() => {
     if (!docenteId || !db) {
       setTeacherMessage("¡Tripulantes de 1er año! Recuerden usar hoja y lápiz para verificar la base antes de responder en los mandos.");
