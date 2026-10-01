@@ -517,10 +517,10 @@ function DrawerWithSendButton({ student, onClose }) {
   const [emailSent, setEmailSent] = useState(false);
 
   const getStudentPrimaryDesvio = (s) => {
-    if (s.missions.m4.lastErrorCode) return s.missions.m4.lastErrorCode;
-    if (s.missions.m3.lastErrorCode) return s.missions.m3.lastErrorCode;
-    if (s.missions.m2.lastErrorCode) return s.missions.m2.lastErrorCode;
-    if (s.missions.m1.lastErrorCode) return s.missions.m1.lastErrorCode;
+    if (s.missions?.m4?.lastErrorCode) return s.missions.m4.lastErrorCode;
+    if (s.missions?.m3?.lastErrorCode) return s.missions.m3.lastErrorCode;
+    if (s.missions?.m2?.lastErrorCode) return s.missions.m2.lastErrorCode;
+    if (s.missions?.m1?.lastErrorCode) return s.missions.m1.lastErrorCode;
     return null;
   };
 
@@ -532,24 +532,24 @@ function DrawerWithSendButton({ student, onClose }) {
 
   if (student.badgeEarned) {
     if (student.errorsCount === 0) {
-      performanceTitle = "Domina sin errores (Master Absoluto)";
+      performanceTitle = "Dominio Perfecto (Sin Desvíos)";
       performanceColor = "#10b981";
-      aulaAdvice = "El alumno ha alcanzado un dominio conceptual perfecto y sin cometer desvíos. No requiere intervención en clase; continúe motivándolo con desafíos avanzados.";
-      padresAdvice = "¡Felicitaciones! Su hijo/a completó todos los desafíos de matemática con precisión absoluta y sin un solo error.";
+      aulaAdvice = "El alumno alcanzó un dominio conceptual impecable. Proponer actividades de liderazgo o tutoría entre pares.";
+      padresAdvice = "¡Felicitaciones! Su hijo/a completó el módulo de fracciones con precisión total y sin errores.";
     } else {
-      performanceTitle = "Domina con errores (Dominio Resiliente)";
+      performanceTitle = "Dominio Resiliente (Con Reintentos)";
       performanceColor = "#10b981";
-      aulaAdvice = "El alumno logró de forma resiliente consolidar el aprendizaje, superando los desvíos previos en la bitácora mediante el reintento.";
-      padresAdvice = "Su hijo/a superó las misiones demostrando perseverancia y corrigiendo sus desvíos de forma resiliente.";
+      aulaAdvice = "El alumno logró consolidar el aprendizaje superando desvíos mediante el reintento autónomo.";
+      padresAdvice = "Su hijo/a superó las 4 misiones demostrando perseverancia y aprendiendo de cada error.";
     }
   } else if (primaryDesvio) {
-    performanceTitle = `Alerta de Desvío: ${primaryDesvio}`;
+    performanceTitle = `Alerta de Desvío: ${translateDesvio(primaryDesvio)}`;
     performanceColor = "#fb923c";
     aulaAdvice = SYSTEM_EXPERT_ALERTS[primaryDesvio] || "Reforzar con guía personalizada en clase.";
-    padresAdvice = "Acompañen a su hijo/a en casa revisando juntos el ejercicio con elementos físicos.";
+    padresAdvice = "Acompañen a su hijo/a en casa revisando juntos los ejercicios con materiales concretos.";
   } else {
-    aulaAdvice = "El alumno avanzó de forma regular dentro de la trayectoria de aprendizaje.";
-    padresAdvice = "Acompañen el esfuerzo de su hijo/a en casa y anímenlo/a a seguir completando las misiones.";
+    aulaAdvice = "El alumno avanza activamente en las misiones iniciales.";
+    padresAdvice = "Animen a su hijo/a a seguir completando los desafíos semanales.";
   }
 
   const handleSendToParents = () => {
@@ -557,32 +557,125 @@ function DrawerWithSendButton({ student, onClose }) {
     setTimeout(() => setEmailSent(false), 4000);
   };
 
+  const misionesList = [
+    { key: "m1", ...student.missions.m1 },
+    { key: "m2", ...student.missions.m2 },
+    { key: "m3", ...student.missions.m3 },
+    { key: "m4", ...student.missions.m4 }
+  ];
+
+  const completadasCount = (student.misionesCompletadas || []).length;
+  const xpPct = Math.min(100, Math.round(((student.xp || 0) / 750) * 100));
+
   return (
     <div style={styles.topModalOverlay} onClick={onClose}>
-      <div style={styles.topModalCard} onClick={(e) => e.stopPropagation()}>
-        <div style={styles.modalHeader}>
-          <div>
-            <h2 style={{ margin: 0, color: "#38bdf8", fontSize: "18px" }}>Análisis de Trayectoria: {student.name}</h2>
-            <span style={{ fontSize: "12px", color: "#94a3b8" }}>ID: {student.id} · Escuela: {student.escuela}</span>
+      <div style={styles.topModalCardWide} onClick={(e) => e.stopPropagation()}>
+        
+        {/* CABECERA CON AVATAR, NOMBRE, ESCUELA, CURSO E INSIGNIA */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #1e293b", paddingBottom: "12px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "36px" }}>🧑‍🚀</span>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <h2 style={{ margin: 0, color: "#f8fafc", fontSize: "20px", fontWeight: "bold" }}>
+                  {student.name}
+                </h2>
+                {student.badgeEarned && (
+                  <span style={{ backgroundColor: "rgba(245, 158, 11, 0.2)", border: "1px solid #f59e0b", color: "#fbbf24", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" }}>
+                    🏆 Insignia de Fusión
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
+                {student.escuela} · {student.curso}
+              </div>
+            </div>
           </div>
           <button style={styles.btnCloseModal} onClick={onClose}>✕</button>
         </div>
 
         <div style={styles.modalBody}>
-          <div style={styles.profileSection}>
-            <p style={{ margin: "0 0 6px 0" }}>Desempeño Global: <strong style={{ color: performanceColor }}>{performanceTitle}</strong></p>
-            <p style={{ margin: "0 0 6px 0" }}>Experiencia Acumulada: <strong>{student.xp} / 750 XP</strong></p>
-            <p style={{ margin: "0" }}>Ayudas Solicitadas / Errores: 💡 <strong>{student.helpsRequested}</strong> | ✖ <strong style={{ color: "#fb923c" }}>{student.errorsCount}</strong></p>
+          
+          {/* BARRA DE XP GRADIENTE Y 3 TARJETAS KPI */}
+          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "14px", marginBottom: "16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <span style={{ fontSize: "12px", color: "#cbd5e1", fontWeight: "bold" }}>EXPERIENCIA ACUMULADA:</span>
+              <strong style={{ fontSize: "18px", color: "#38bdf8" }}>{student.xp || 0} / 750 XP</strong>
+            </div>
+            <div style={{ height: "12px", backgroundColor: "#0f172a", borderRadius: "6px", overflow: "hidden", border: "1px solid #334155", marginBottom: "12px" }}>
+              <div style={{ height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg, #10b981, #38bdf8)", borderRadius: "6px", transition: "width 0.4s ease" }} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+              <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", padding: "8px", borderRadius: "6px", textAlign: "center" }}>
+                <div style={{ fontSize: "10px", color: "#94a3b8" }}>Misiones Logradas</div>
+                <div style={{ fontSize: "16px", fontWeight: "bold", color: "#4ade80" }}>{completadasCount} / 4</div>
+              </div>
+              <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", padding: "8px", borderRadius: "6px", textAlign: "center" }}>
+                <div style={{ fontSize: "10px", color: "#94a3b8" }}>Pistas Pedidas</div>
+                <div style={{ fontSize: "16px", fontWeight: "bold", color: "#38bdf8" }}>💡 {student.helpsRequested || 0}</div>
+              </div>
+              <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", padding: "8px", borderRadius: "6px", textAlign: "center" }}>
+                <div style={{ fontSize: "10px", color: "#94a3b8" }}>Desvíos Registrados</div>
+                <div style={{ fontSize: "16px", fontWeight: "bold", color: "#fb923c" }}>✖ {student.errorsCount || 0}</div>
+              </div>
+            </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+          {/* DESGLOSE FILA POR FILA DE LAS 4 MISIONES */}
+          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
+            <h4 style={{ color: "#38bdf8", fontSize: "12px", margin: "0 0 10px 0", textTransform: "uppercase" }}>
+              🗺️ Detalle por Misión
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {misionesList.map((m) => {
+                const isDone = m.status === "completado";
+                const isInProgress = m.status === "en_curso";
+                const isNotStarted = !isDone && !isInProgress;
+
+                const statusLabel = isDone ? "✔ Completada" : isInProgress ? "⚡ En curso" : "⏳ Sin iniciar";
+                const statusBg = isDone ? "rgba(16, 185, 129, 0.15)" : isInProgress ? "rgba(251, 146, 60, 0.15)" : "rgba(100, 116, 139, 0.15)";
+                const statusColor = isDone ? "#4ade80" : isInProgress ? "#fb923c" : "#64748b";
+                const statusBorder = isDone ? "#10b981" : isInProgress ? "#fb923c" : "#334155";
+
+                const errorTranslated = m.lastErrorCode ? translateDesvio(m.lastErrorCode) : (isDone ? "Sin desvíos actuales" : "Sin registro");
+
+                return (
+                  <div key={m.key} style={{ backgroundColor: "#0f172a", border: `1px solid ${statusBorder}`, borderRadius: "8px", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ fontSize: "18px" }}>{m.icon}</span>
+                      <div>
+                        <strong style={{ color: "#f8fafc", fontSize: "13px" }}>{m.title}</strong>
+                        <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "1px" }}>
+                          Último diagnóstico: <span style={{ color: m.lastErrorCode ? "#fb923c" : "#94a3b8" }}>{errorTranslated}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div style={{ textAlign: "right", fontSize: "11px", color: "#cbd5e1" }}>
+                        <div>Intentos: <strong>{m.attempts || 0}</strong></div>
+                        <div style={{ fontSize: "10px", color: "#94a3b8" }}>💡 {m.helps || 0} · ✖ {m.errors || 0}</div>
+                      </div>
+                      <span style={{ backgroundColor: statusBg, color: statusColor, border: `1px solid ${statusBorder}`, padding: "3px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: "bold" }}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* TARJETAS DE ORIENTACIÓN DIDÁCTICA */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
             <div style={{ borderLeft: "4px solid #10b981", backgroundColor: "rgba(16, 185, 129, 0.05)", padding: "12px", borderRadius: "6px" }}>
-              <h4 style={{ margin: "0 0 6px 0", color: "#10b981", fontSize: "12px", textTransform: "uppercase" }}>👩‍🏫 Consejo para el Aula (Docente)</h4>
+              <h4 style={{ margin: "0 0 6px 0", color: "#10b981", fontSize: "12px", textTransform: "uppercase" }}>👩‍🏫 Orientación para el Aula</h4>
               <p style={{ fontSize: "12px", margin: 0, lineHeight: "1.5", color: "#cbd5e1" }}>{aulaAdvice}</p>
             </div>
 
             <div style={{ borderLeft: "4px solid #8b5cf6", backgroundColor: "rgba(139, 92, 246, 0.05)", padding: "12px", borderRadius: "6px" }}>
-              <h4 style={{ margin: "0 0 6px 0", color: "#8b5cf6", fontSize: "12px", textTransform: "uppercase" }}>🏠 Consejo para la Familia (Hogar)</h4>
+              <h4 style={{ margin: "0 0 6px 0", color: "#8b5cf6", fontSize: "12px", textTransform: "uppercase" }}>🏠 Consejos para el Hogar (CiDi)</h4>
               <p style={{ fontSize: "12px", margin: 0, lineHeight: "1.5", color: "#cbd5e1" }}>{padresAdvice}</p>
             </div>
           </div>
@@ -602,7 +695,6 @@ function DrawerWithSendButton({ student, onClose }) {
   );
 }
 
-
 // ==========================================
 // 🧠 TRADUCTOR DE DESVÍOS DIDÁCTICOS
 // ==========================================
@@ -621,9 +713,9 @@ function slug(text) {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+\$/g, "")
+    .replace(/^_+|_+$/g, "")
     .replace(/_+/g, "_");
 }
 
@@ -643,10 +735,18 @@ export default function App() {
   });
   
   // Registro / Perfil Inicial Docente
-  const [perfilDocente, setPerfilDocente] = useState({
-    nombre: "",
-    escuela: "IPEM",
-    curso: "1° Año"
+  const [perfilDocente, setPerfilDocente] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("edumision_docente_profile");
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return {
+      nombre: "",
+      escuela: "IPEM",
+      curso: "1° Año"
+    };
   });
   const [tipoEscuela, setTipoEscuela] = useState("IPEM");
   const [escuelaOtra, setEscuelaOtra] = useState("");
@@ -661,7 +761,7 @@ export default function App() {
   });
 
   const [students, setStudents] = useState([]);
-  const [liveLogs, setLiveLogs] = useState([]);
+
 
   // 🔄 1. Escuchar 'alumnos' filtrados strictly por docenteId
   useEffect(() => {
@@ -675,58 +775,76 @@ export default function App() {
       where("docenteId", "==", docenteId)
     );
 
-    const unsubAlumnos = onSnapshot(qAlumnos, (snapshot) => {
-      const list = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        list.push({
-          alumnoId: docSnap.id,
-          id: docSnap.id,
-          name: data.nickname || "Alumno",
-          nickname: data.nickname || "Alumno",
-          escuela: data.escuela || "Escuela",
-          curso: data.curso || "1° Año",
-          docenteId: data.docenteId || null,
-          xp: data.xpTotal || 0,
-          xpTotal: data.xpTotal || 0,
-          badgeEarned: !!data.badgeEarned,
-          misionesCompletadas: data.misionesCompletadas || [],
-          misionesConError: data.misionesConError || [],
-          statsPorMision: data.statsPorMision || {
-            m1: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-            m2: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-            m3: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-            m4: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null }
-          },
-          missions: {
-            m1: { status: (data.misionesCompletadas || []).includes("m1") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m1?.intentos || 0, helps: data.statsPorMision?.m1?.ayudas || 0, errors: data.statsPorMision?.m1?.errores || 0, lastErrorCode: data.statsPorMision?.m1?.ultimoError },
-            m2: { status: (data.misionesCompletadas || []).includes("m2") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m2?.intentos || 0, helps: data.statsPorMision?.m2?.ayudas || 0, errors: data.statsPorMision?.m2?.errores || 0, lastErrorCode: data.statsPorMision?.m2?.ultimoError },
-            m3: { status: (data.misionesCompletadas || []).includes("m3") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m3?.intentos || 0, helps: data.statsPorMision?.m3?.ayudas || 0, errors: data.statsPorMision?.m3?.errores || 0, lastErrorCode: data.statsPorMision?.m3?.ultimoError },
-            m4: { status: (data.misionesCompletadas || []).includes("m4") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m4?.intentos || 0, helps: data.statsPorMision?.m4?.ayudas || 0, errors: data.statsPorMision?.m4?.errores || 0, lastErrorCode: data.statsPorMision?.m4?.ultimoError }
-          }
+    const unsubAlumnos = onSnapshot(
+      qAlumnos,
+      (snapshot) => {
+        const list = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          list.push({
+            alumnoId: docSnap.id,
+            id: docSnap.id,
+            name: data.nickname || "Alumno",
+            nickname: data.nickname || "Alumno",
+            escuela: data.escuela || "Escuela",
+            curso: data.curso || "1° Año",
+            docenteId: data.docenteId || null,
+            xp: data.xpTotal || 0,
+            xpTotal: data.xpTotal || 0,
+            badgeEarned: !!data.badgeEarned,
+            misionesCompletadas: data.misionesCompletadas || [],
+            misionesConError: data.misionesConError || [],
+            statsPorMision: data.statsPorMision || {
+              m1: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+              m2: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+              m3: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
+              m4: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null }
+            },
+            missions: {
+              m1: { status: (data.misionesCompletadas || []).includes("m1") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m1?.intentos || 0, helps: data.statsPorMision?.m1?.ayudas || 0, errors: data.statsPorMision?.m1?.errores || 0, lastErrorCode: data.statsPorMision?.m1?.ultimoError },
+              m2: { status: (data.misionesCompletadas || []).includes("m2") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m2?.intentos || 0, helps: data.statsPorMision?.m2?.ayudas || 0, errors: data.statsPorMision?.m2?.errores || 0, lastErrorCode: data.statsPorMision?.m2?.ultimoError },
+              m3: { status: (data.misionesCompletadas || []).includes("m3") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m3?.intentos || 0, helps: data.statsPorMision?.m3?.ayudas || 0, errors: data.statsPorMision?.m3?.errores || 0, lastErrorCode: data.statsPorMision?.m3?.ultimoError },
+              m4: { status: (data.misionesCompletadas || []).includes("m4") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m4?.intentos || 0, helps: data.statsPorMision?.m4?.ayudas || 0, errors: data.statsPorMision?.m4?.errores || 0, lastErrorCode: data.statsPorMision?.m4?.ultimoError }
+            }
+          });
         });
-      });
-      setStudents(list);
-    });
+        setStudents(list);
+      },
+      (err) => console.error("Error al escuchar alumnos:", err)
+    );
 
     return () => unsubAlumnos();
   }, [docenteId]);
 
-  // 🔄 2. Escuchar la colección 'bitacora_alumnos'
+  // 📡 2. Escuchar documento de la propia docente (docentes/{docenteId}) para restaurar perfil y mensaje
   useEffect(() => {
-    if (!db) return;
-    const qBitacora = query(collection(db, "bitacora_alumnos"), orderBy("fecha", "desc"));
-    const unsubBitacora = onSnapshot(qBitacora, (snapshot) => {
-      const logs = [];
-      snapshot.forEach((docSnap) => {
-        logs.push({ id: docSnap.id, ...docSnap.data() });
-      });
-      setLiveLogs(logs);
-    });
+    if (!db || !docenteId) return;
 
-    return () => unsubBitacora();
-  }, []);
-  const [selectedStudent, setSelectedStudent] = useState(null);
+    const unsubDocenteDoc = onSnapshot(
+      doc(db, "docentes", docenteId),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.nombre || data.escuela || data.curso) {
+            setPerfilDocente((prev) => ({
+              nombre: data.nombre || prev.nombre,
+              escuela: data.escuela || prev.escuela,
+              curso: data.curso || prev.curso
+            }));
+          }
+          if (data.mensajeActual) {
+            setTeacherMessage(data.mensajeActual);
+            setInputMsg(data.mensajeActual);
+          }
+        }
+      },
+      (err) => console.error("Error escuchando documento de docente:", err)
+    );
+
+    return () => unsubDocenteDoc();
+  }, [docenteId]);
+
+    const [selectedStudent, setSelectedStudent] = useState(null);
   const [teacherMessage, setTeacherMessage] = useState("¡Buen viaje espacial, tripulantes! Lean con atención cada consigna.");
   const [inputMsg, setInputMsg] = useState(teacherMessage);
   const [pedagogicalPopup, setPedagogicalPopup] = useState(null); // 'm1', 'm2', 'm3', 'm4'
@@ -792,10 +910,17 @@ export default function App() {
       }
     }
 
+    const updatedProfile = {
+      nombre: perfilDocente.nombre.trim(),
+      escuela: finalEscuela,
+      curso: perfilDocente.curso || "1° Año"
+    };
+    setPerfilDocente(updatedProfile);
     setDocenteId(dId);
     sessionStorage.setItem("edumision_docente_id", dId);
+    sessionStorage.setItem("edumision_docente_profile", JSON.stringify(updatedProfile));
     setFaseDocente("panel");
-    showToast(`👩‍🏫 Bienvenida/o ${perfilDocente.nombre} (${finalEscuela})`);
+    showToast(`👩‍🏫 Bienvenida/o ${updatedProfile.nombre} (${finalEscuela})`);
   };
 
   const handleEnviarEncuestaDocente = (e) => {
@@ -1080,26 +1205,7 @@ export default function App() {
                 </table>
               </div>
             </div>
-          {/* BOX DE TELEMETRÍA FIRESTORE EN TIEMPO REAL */}
-          <div style={{ marginTop: "20px", backgroundColor: "#020617", padding: "16px", borderRadius: "12px", border: "1px solid #1e293b" }}>
-            <h4 style={{ color: "#38bdf8", margin: "0 0 10px 0", display: "flex", alignItems: "center", gap: "8px" }}>
-              📡 Telemetría xAPI en Vivo desde Firebase {liveLogs.length > 0 && <span style={{ fontSize: "11px", backgroundColor: "#10b981", color: "#fff", padding: "2px 8px", borderRadius: "10px" }}>● EN TIEMPO REAL ({liveLogs.length} eventos)</span>}
-            </h4>
-            <div style={{ maxHeight: "180px", overflowY: "auto", fontSize: "12px", fontFamily: "monospace", color: "#94a3b8" }}>
-              {liveLogs.length === 0 ? (
-                <div style={{ color: "#64748b", fontStyle: "italic" }}>Conectado a Firestore. Esperando actividad de alumnos en tiempo real...</div>
-              ) : (
-                liveLogs.map((log) => (
-                  <div key={log.id} style={{ marginBottom: "6px", borderBottom: "1px dashed #1e293b", paddingBottom: "4px" }}>
-                    <strong style={{ color: "#38bdf8" }}>{log.alumno || "Alumno"}</strong> ({log.escuela || "1° Año"}): <span style={{ color: "#f8fafc" }}>{log.evento}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-
-            <div style={styles.rightColumn}>
+          <div style={styles.rightColumn}>
               <div style={styles.dashboardCard}>
                 <h3 style={styles.cardSectionTitle}>Diagnóstico Colectivo (Sistema Experto)</h3>
                 <p style={styles.instructions}>
