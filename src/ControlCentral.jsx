@@ -8,16 +8,30 @@ import {
   updateDoc,
   deleteDoc,
   query,
+  where,
   orderBy,
   limit,
-  writeBatch,
-  serverTimestamp
+  writeBatch
 } from "firebase/firestore";
 
 // ==========================================
 // 🔒 CONFIGURACIÓN DE SEGURIDAD
 // ==========================================
 const PIN_ACCESO = "1234";
+
+// ==========================================
+// 🛠️ HELPER SLUG NORMALIZADO
+// ==========================================
+function slug(text) {
+  if (!text) return "";
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$\g, "")
+    .replace(/_+/g, "_");
+}
 
 // ==========================================
 // 🛠️ HELPER EXPORTADOR A EXCEL / LIBREOFFICE (.CSV NATIVO)
@@ -122,11 +136,11 @@ export default function App() {
       }
     );
 
-    // 3. Suscripción a Bitácora (Telemetría xAPI con limit 200)
+    // 3. Suscripción a Bitácora (Telemetría xAPI con limit 100)
     const qBitacora = query(
       collection(db, "bitacora_alumnos"),
       orderBy("fecha", "desc"),
-      limit(200)
+      limit(100)
     );
     const unsubBitacora = onSnapshot(
       qBitacora,
@@ -155,11 +169,6 @@ export default function App() {
   const docentesIdsSet = new Set(docentes.map((d) => d.id));
   const alumnosADesignar = alumnos.filter(
     (a) => !a.docenteId || !docentesIdsSet.has(a.docenteId)
-  );
-
-  // 3) ALUMNOS ASIGNADOS: Tienen docenteId válido existente en "docentes"
-  const alumnosAsignados = alumnos.filter(
-    (a) => a.docenteId && docentesIdsSet.has(a.docenteId)
   );
 
   const getAlumnosCountForDocente = (docenteId) => {
@@ -555,7 +564,7 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    justify: "space-between"
+                    justifyContent: "space-between"
                   }}
                 >
                   {/* ETIQUETA AMARILLA DE DUPLICADO */}
@@ -697,7 +706,7 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
           </span>
         </div>
         <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
-          Últimos 200 eventos xAPI registrados desde las cabinas de los alumnos:
+          Últimos 100 eventos xAPI registrados desde las cabinas de los alumnos:
         </p>
 
         <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "8px", padding: "15px", maxHeight: "300px", overflowY: "auto", fontFamily: "monospace", fontSize: "12px" }}>
