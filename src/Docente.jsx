@@ -513,14 +513,30 @@ function renderMissionCell(student, mKey) {
 // ==========================================
 // 📬 COMPONENTE MODAL DE ANÁLISIS (ARRIBA EN PANTALLA, NO AL COSTADO)
 // ==========================================
+// ==========================================
+// 📬 COMPONENTE MODAL DE ANÁLISIS INDIVIDUAL DE TRAYECTORIA
+// ==========================================
+const MISSION_CONFIG = {
+  m1: { title: "Misión 1: Reserva de Agua", icon: "💧" },
+  m2: { title: "Misión 2: Mezcla de Combustible", icon: "🧪" },
+  m3: { title: "Misión 3: Acople de Víveres", icon: "📦" },
+  m4: { title: "Misión 4: Travesía Integrada", icon: "🚀" }
+};
+
 function DrawerWithSendButton({ student, onClose }) {
   const [emailSent, setEmailSent] = useState(false);
+
+  if (!student) return null;
 
   const getStudentPrimaryDesvio = (s) => {
     if (s.missions?.m4?.lastErrorCode) return s.missions.m4.lastErrorCode;
     if (s.missions?.m3?.lastErrorCode) return s.missions.m3.lastErrorCode;
     if (s.missions?.m2?.lastErrorCode) return s.missions.m2.lastErrorCode;
     if (s.missions?.m1?.lastErrorCode) return s.missions.m1.lastErrorCode;
+    if (s.statsPorMision?.m4?.ultimoError) return s.statsPorMision.m4.ultimoError;
+    if (s.statsPorMision?.m3?.ultimoError) return s.statsPorMision.m3.ultimoError;
+    if (s.statsPorMision?.m2?.ultimoError) return s.statsPorMision.m2.ultimoError;
+    if (s.statsPorMision?.m1?.ultimoError) return s.statsPorMision.m1.ultimoError;
     return null;
   };
 
@@ -531,7 +547,7 @@ function DrawerWithSendButton({ student, onClose }) {
   let performanceColor = "#cbd5e1";
 
   if (student.badgeEarned) {
-    if (student.errorsCount === 0) {
+    if ((student.errorsCount || 0) === 0) {
       performanceTitle = "Dominio Perfecto (Sin Desvíos)";
       performanceColor = "#10b981";
       aulaAdvice = "El alumno alcanzó un dominio conceptual impecable. Proponer actividades de liderazgo o tutoría entre pares.";
@@ -557,28 +573,45 @@ function DrawerWithSendButton({ student, onClose }) {
     setTimeout(() => setEmailSent(false), 4000);
   };
 
-  const misionesList = [
-    { key: "m1", ...student.missions.m1 },
-    { key: "m2", ...student.missions.m2 },
-    { key: "m3", ...student.missions.m3 },
-    { key: "m4", ...student.missions.m4 }
-  ];
+  const misionesList = ["m1", "m2", "m3", "m4"].map((mKey) => {
+    const config = MISSION_CONFIG[mKey];
+    const mData = student?.missions?.[mKey] || {};
+    const stats = student?.statsPorMision?.[mKey] || {};
+    const isDone = (student?.misionesCompletadas || []).includes(mKey);
+    const attempts = mData.attempts || stats.intentosDesafio || stats.intentos || 0;
+    const helps = mData.helps || stats.ayudas || 0;
+    const errors = mData.errors || stats.errores || 0;
+    const lastErrorCode = mData.lastErrorCode || stats.ultimoError || null;
+    const isInProgress = !isDone && (attempts > 0 || (stats.intentosSimulacro || 0) > 0);
+    const status = isDone ? "completado" : (isInProgress ? "en_curso" : "sin_iniciar");
+
+    return {
+      key: mKey,
+      title: config.title,
+      icon: config.icon,
+      status,
+      attempts,
+      helps,
+      errors,
+      lastErrorCode
+    };
+  });
 
   const completadasCount = (student.misionesCompletadas || []).length;
-  const xpPct = Math.min(100, Math.round(((student.xp || 0) / 750) * 100));
+  const xpPct = Math.min(100, Math.round(((student.xpTotal || student.xp || 0) / 750) * 100));
 
   return (
     <div style={styles.topModalOverlay} onClick={onClose}>
       <div style={styles.topModalCardWide} onClick={(e) => e.stopPropagation()}>
         
-        {/* CABECERA CON AVATAR, NOMBRE, ESCUELA, CURSO E INSIGNIA */}
+        {/* CABECERA CON AVATAR, NOMBRE, ESCUELA Y CURSO */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #1e293b", paddingBottom: "12px", marginBottom: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span style={{ fontSize: "36px" }}>🧑‍🚀</span>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <h2 style={{ margin: 0, color: "#f8fafc", fontSize: "20px", fontWeight: "bold" }}>
-                  {student.name}
+                  {student.name || student.nickname || "Alumno"}
                 </h2>
                 {student.badgeEarned && (
                   <span style={{ backgroundColor: "rgba(245, 158, 11, 0.2)", border: "1px solid #f59e0b", color: "#fbbf24", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" }}>
@@ -587,7 +620,7 @@ function DrawerWithSendButton({ student, onClose }) {
                 )}
               </div>
               <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
-                {student.escuela} · {student.curso}
+                {student.escuela || "Escuela"} · {student.curso || "1° Año"}
               </div>
             </div>
           </div>
@@ -600,7 +633,7 @@ function DrawerWithSendButton({ student, onClose }) {
           <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "14px", marginBottom: "16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
               <span style={{ fontSize: "12px", color: "#cbd5e1", fontWeight: "bold" }}>EXPERIENCIA ACUMULADA:</span>
-              <strong style={{ fontSize: "18px", color: "#38bdf8" }}>{student.xp || 0} / 750 XP</strong>
+              <strong style={{ fontSize: "18px", color: "#38bdf8" }}>{student.xpTotal || student.xp || 0} / 750 XP</strong>
             </div>
             <div style={{ height: "12px", backgroundColor: "#0f172a", borderRadius: "6px", overflow: "hidden", border: "1px solid #334155", marginBottom: "12px" }}>
               <div style={{ height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg, #10b981, #38bdf8)", borderRadius: "6px", transition: "width 0.4s ease" }} />
@@ -631,7 +664,6 @@ function DrawerWithSendButton({ student, onClose }) {
               {misionesList.map((m) => {
                 const isDone = m.status === "completado";
                 const isInProgress = m.status === "en_curso";
-                const isNotStarted = !isDone && !isInProgress;
 
                 const statusLabel = isDone ? "✔ Completada" : isInProgress ? "⚡ En curso" : "⏳ Sin iniciar";
                 const statusBg = isDone ? "rgba(16, 185, 129, 0.15)" : isInProgress ? "rgba(251, 146, 60, 0.15)" : "rgba(100, 116, 139, 0.15)";
@@ -647,7 +679,7 @@ function DrawerWithSendButton({ student, onClose }) {
                       <div>
                         <strong style={{ color: "#f8fafc", fontSize: "13px" }}>{m.title}</strong>
                         <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "1px" }}>
-                          Último diagnóstico: <span style={{ color: m.lastErrorCode ? "#fb923c" : "#94a3b8" }}>{errorTranslated}</span>
+                          Diagnóstico: <span style={{ color: m.lastErrorCode ? "#fb923c" : "#94a3b8" }}>{errorTranslated}</span>
                         </div>
                       </div>
                     </div>
@@ -667,7 +699,7 @@ function DrawerWithSendButton({ student, onClose }) {
             </div>
           </div>
 
-          {/* TARJETAS DE ORIENTACIÓN DIDÁCTICA */}
+          {/* DOS TARJETAS DE ORIENTACIÓN DIDÁCTICA */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
             <div style={{ borderLeft: "4px solid #10b981", backgroundColor: "rgba(16, 185, 129, 0.05)", padding: "12px", borderRadius: "6px" }}>
               <h4 style={{ margin: "0 0 6px 0", color: "#10b981", fontSize: "12px", textTransform: "uppercase" }}>👩‍🏫 Orientación para el Aula</h4>
@@ -1176,7 +1208,7 @@ export default function App() {
                     {students.length === 0 ? (
                       <tr>
                         <td colSpan="7" style={{ fontStyle: "italic", color: "#64748b", padding: "20px", textAlign: "center" }}>
-                          Todavía no tenés alumnos asignados. Pedile al Control Central que los vincule.
+                          Aún no tienes alumnos vinculados por Control Central. Solicitá su vinculación al administrador.
                         </td>
                       </tr>
                     ) : (
