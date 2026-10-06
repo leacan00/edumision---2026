@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { db } from "./firebase";
-import { collection, query, orderBy, where, onSnapshot, doc, getDoc, setDoc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
+  serverTimestamp
+} from "firebase/firestore";
 
 const styles = {
   alertBadge: {
@@ -105,14 +115,15 @@ const styles = {
     gap: "8px"
   },
   btnTableAction: {
-    padding: "4px 10px",
-    fontSize: "10px",
-    borderRadius: "4px",
+    padding: "6px 12px",
+    fontSize: "11px",
+    borderRadius: "6px",
     border: "none",
-    backgroundColor: "#1e3a8a",
-    color: "#38bdf8",
+    backgroundColor: "#0284c7",
+    color: "#ffffff",
     cursor: "pointer",
-    fontWeight: "bold"
+    fontWeight: "bold",
+    boxShadow: "0 2px 6px rgba(2, 132, 199, 0.3)"
   },
   btnValoracionTop: {
     backgroundColor: "rgba(139, 92, 246, 0.2)",
@@ -122,6 +133,25 @@ const styles = {
     borderRadius: "6px",
     fontSize: "11px",
     fontWeight: "bold",
+    cursor: "pointer"
+  },
+  btnGroupAnalysisTop: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    border: "1px solid #10b981",
+    color: "#4ade80",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    fontSize: "11px",
+    fontWeight: "bold",
+    cursor: "pointer"
+  },
+  btnLogout: {
+    backgroundColor: "transparent",
+    border: "1px solid #334155",
+    color: "#94a3b8",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    fontSize: "11px",
     cursor: "pointer"
   },
   cardBoxIngreso: {
@@ -323,7 +353,7 @@ const styles = {
     fontSize: "15px",
     fontWeight: "bold",
     color: "#38bdf8",
-    marginBottom: "6px",
+    marginBottom: "#6px",
     display: "block"
   },
   table: {
@@ -401,10 +431,13 @@ const styles = {
     border: "2px solid #38bdf8",
     borderRadius: "14px",
     padding: "20px",
-    maxWidth: "720px",
-    width: "90%",
+    maxWidth: "760px",
+    width: "95%",
+    maxHeight: "90vh",
+    overflowY: "auto",
     boxShadow: "0 0 30px rgba(56, 189, 248, 0.2)",
-    position: "relative"
+    position: "relative",
+    color: "#f8fafc"
   },
   topModalHeader: {
     display: "flex",
@@ -423,7 +456,7 @@ const styles = {
     alignItems: "flex-start",
     paddingTop: "20px",
     paddingBottom: "20px",
-    zIndex: 3000,
+    zIndex: 10000,
     overflowY: "auto"
   },
   tr: {
@@ -431,10 +464,6 @@ const styles = {
   }
 };
 
-
-// ==========================================
-// 📚 FICHA PEDAGÓGICA Y OBJETIVOS DE MISIONES (POPUP DOCENTE)
-// ==========================================
 const MISSION_PEDAGOGICAL_INFO = {
   m1: {
     title: "Misión 1: Reserva de Agua Vital",
@@ -466,27 +495,56 @@ const MISSION_PEDAGOGICAL_INFO = {
   }
 };
 
-
-
 const SYSTEM_EXPERT_ALERTS = {
   ERR_DIRECT: "Error suma directa: 🛠️ Propuesta para el aula presencial: dinámica de doblado de tiras de papel para visualizar por qué el denominador nunca se suma.",
   ERR_PARTIAL: "Error suma parcial: 🍳 Actividad para el hogar: usen elementos divisibles en la mesa para representar la agregación de partes.",
   ERR_LCD: "Error cálculo denominador: 🧩 Actividad para el hogar: repasen juntos las tablas de multiplicar de los denominadores antes de operar.",
+  ERR_SIMP: "Error simplificación: 📦 Actividad para el hogar: practiquen dividir numerador y denominador por el mismo divisor.",
   ERR_COMPARE: "Error comparación: 🥤 Actividad para el hogar: sirvan agua en vasos de diferente diámetro para ilustrar la necesidad de una base común."
 };
 
+const MISSION_CONFIG = {
+  m1: { title: "Misión 1: Reserva de Agua", icon: "💧" },
+  m2: { title: "Misión 2: Mezcla de Combustible", icon: "🧪" },
+  m3: { title: "Misión 3: Acople de Víveres", icon: "📦" },
+  m4: { title: "Misión 4: Travesía Integrada", icon: "🚀" }
+};
+
+const translateDesvio = (code) => {
+  if (code === "ERR_DIRECT") return "Error suma directa (Sin unificar base)";
+  if (code === "ERR_PARTIAL") return "Error suma parcial (Incompleta)";
+  if (code === "ERR_LCD") return "Error cálculo denominador";
+  if (code === "ERR_SIMP") return "Error simplificación";
+  if (code === "ERR_COMPARE") return "Error comparación de magnitudes";
+  if (code === "ERR_GENERIC") return "Desvío general de operación";
+  return code || "Desvío general";
+};
+
+function slug(text) {
+  if (!text) return "";
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
+}
+
 function renderMissionCell(student, mKey) {
-  const mData = student.missions[mKey];
-  const status = mData ? mData.status : "bloqueada";
-  const helps = mData ? (mData.helps || 0) : 0;
-  const errors = mData ? (mData.errors || 0) : 0;
+  const mData = student?.missions?.[mKey] || {};
+  const stats = student?.statsPorMision?.[mKey] || {};
+  const isCompleted = (student?.misionesCompletadas || []).includes(mKey);
+  const helps = mData.helps || stats.ayudas || 0;
+  const errors = mData.errors || stats.errores || 0;
+  const attempts = mData.attempts || stats.intentosDesafio || stats.intentos || 0;
+  const hasActivity = isCompleted || attempts > 0 || (stats.intentosSimulacro || 0) > 0;
 
   let bgColor = "rgba(30, 41, 59, 0.3)";
   let borderColor = "#1e293b";
   let textColor = "#cbd5e1";
-  let hasActivity = status === "completado" || status === "en_curso" || (mData && mData.attempts > 0);
 
-  if (status === "completado") {
+  if (isCompleted) {
     bgColor = "rgba(16, 185, 129, 0.15)";
     borderColor = "#10b981";
     textColor = "#4ade80";
@@ -508,35 +566,35 @@ function renderMissionCell(student, mKey) {
   );
 }
 
-
-
 // ==========================================
-// 📬 COMPONENTE MODAL DE ANÁLISIS (ARRIBA EN PANTALLA, NO AL COSTADO)
+// 📬 MODAL DE ANÁLISIS INDIVIDUAL DE TRAYECTORIA (1.a FIX)
 // ==========================================
-// ==========================================
-// 📬 COMPONENTE MODAL DE ANÁLISIS INDIVIDUAL DE TRAYECTORIA
-// ==========================================
-const MISSION_CONFIG = {
-  m1: { title: "Misión 1: Reserva de Agua", icon: "💧" },
-  m2: { title: "Misión 2: Mezcla de Combustible", icon: "🧪" },
-  m3: { title: "Misión 3: Acople de Víveres", icon: "📦" },
-  m4: { title: "Misión 4: Travesía Integrada", icon: "🚀" }
-};
-
 function DrawerWithSendButton({ student, onClose }) {
   const [emailSent, setEmailSent] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   if (!student) return null;
 
   const getStudentPrimaryDesvio = (s) => {
-    if (s.missions?.m4?.lastErrorCode) return s.missions.m4.lastErrorCode;
-    if (s.missions?.m3?.lastErrorCode) return s.missions.m3.lastErrorCode;
-    if (s.missions?.m2?.lastErrorCode) return s.missions.m2.lastErrorCode;
-    if (s.missions?.m1?.lastErrorCode) return s.missions.m1.lastErrorCode;
-    if (s.statsPorMision?.m4?.ultimoError) return s.statsPorMision.m4.ultimoError;
-    if (s.statsPorMision?.m3?.ultimoError) return s.statsPorMision.m3.ultimoError;
-    if (s.statsPorMision?.m2?.ultimoError) return s.statsPorMision.m2.ultimoError;
-    if (s.statsPorMision?.m1?.ultimoError) return s.statsPorMision.m1.ultimoError;
+    try {
+      if (s?.missions?.m4?.lastErrorCode) return s.missions.m4.lastErrorCode;
+      if (s?.missions?.m3?.lastErrorCode) return s.missions.m3.lastErrorCode;
+      if (s?.missions?.m2?.lastErrorCode) return s.missions.m2.lastErrorCode;
+      if (s?.missions?.m1?.lastErrorCode) return s.missions.m1.lastErrorCode;
+      if (s?.statsPorMision?.m4?.ultimoError) return s.statsPorMision.m4.ultimoError;
+      if (s?.statsPorMision?.m3?.ultimoError) return s.statsPorMision.m3.ultimoError;
+      if (s?.statsPorMision?.m2?.ultimoError) return s.statsPorMision.m2.ultimoError;
+      if (s?.statsPorMision?.m1?.ultimoError) return s.statsPorMision.m1.ultimoError;
+    } catch (e) {
+      console.error("Error leyendo desvío primario:", e);
+    }
     return null;
   };
 
@@ -574,7 +632,7 @@ function DrawerWithSendButton({ student, onClose }) {
   };
 
   const misionesList = ["m1", "m2", "m3", "m4"].map((mKey) => {
-    const config = MISSION_CONFIG[mKey];
+    const config = MISSION_CONFIG[mKey] || { title: `Misión ${mKey}`, icon: "🚀" };
     const mData = student?.missions?.[mKey] || {};
     const stats = student?.statsPorMision?.[mKey] || {};
     const isDone = (student?.misionesCompletadas || []).includes(mKey);
@@ -597,14 +655,15 @@ function DrawerWithSendButton({ student, onClose }) {
     };
   });
 
-  const completadasCount = (student.misionesCompletadas || []).length;
-  const xpPct = Math.min(100, Math.round(((student.xpTotal || student.xp || 0) / 750) * 100));
+  const completadasCount = (student?.misionesCompletadas || []).length;
+  const studentXp = student?.xpTotal || student?.xp || 0;
+  const xpPct = Math.min(100, Math.round((studentXp / 750) * 100));
 
   return (
     <div style={styles.topModalOverlay} onClick={onClose}>
       <div style={styles.topModalCardWide} onClick={(e) => e.stopPropagation()}>
         
-        {/* CABECERA CON AVATAR, NOMBRE, ESCUELA Y CURSO */}
+        {/* CABECERA */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #1e293b", paddingBottom: "12px", marginBottom: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span style={{ fontSize: "36px" }}>🧑‍🚀</span>
@@ -629,11 +688,11 @@ function DrawerWithSendButton({ student, onClose }) {
 
         <div style={styles.modalBody}>
           
-          {/* BARRA DE XP GRADIENTE Y 3 TARJETAS KPI */}
+          {/* BARRA XP Y TARJETAS */}
           <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "14px", marginBottom: "16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
               <span style={{ fontSize: "12px", color: "#cbd5e1", fontWeight: "bold" }}>EXPERIENCIA ACUMULADA:</span>
-              <strong style={{ fontSize: "18px", color: "#38bdf8" }}>{student.xpTotal || student.xp || 0} / 750 XP</strong>
+              <strong style={{ fontSize: "18px", color: "#38bdf8" }}>{studentXp} / 750 XP</strong>
             </div>
             <div style={{ height: "12px", backgroundColor: "#0f172a", borderRadius: "6px", overflow: "hidden", border: "1px solid #334155", marginBottom: "12px" }}>
               <div style={{ height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg, #10b981, #38bdf8)", borderRadius: "6px", transition: "width 0.4s ease" }} />
@@ -655,7 +714,7 @@ function DrawerWithSendButton({ student, onClose }) {
             </div>
           </div>
 
-          {/* DESGLOSE FILA POR FILA DE LAS 4 MISIONES */}
+          {/* MISIONES */}
           <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
             <h4 style={{ color: "#38bdf8", fontSize: "12px", margin: "0 0 10px 0", textTransform: "uppercase" }}>
               🗺️ Detalle por Misión
@@ -699,7 +758,7 @@ function DrawerWithSendButton({ student, onClose }) {
             </div>
           </div>
 
-          {/* DOS TARJETAS DE ORIENTACIÓN DIDÁCTICA */}
+          {/* ORIENTACIÓN DIDÁCTICA */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
             <div style={{ borderLeft: "4px solid #10b981", backgroundColor: "rgba(16, 185, 129, 0.05)", padding: "12px", borderRadius: "6px" }}>
               <h4 style={{ margin: "0 0 6px 0", color: "#10b981", fontSize: "12px", textTransform: "uppercase" }}>👩‍🏫 Orientación para el Aula</h4>
@@ -728,27 +787,134 @@ function DrawerWithSendButton({ student, onClose }) {
 }
 
 // ==========================================
-// 🧠 TRADUCTOR DE DESVÍOS DIDÁCTICOS
+// 📊 MODAL DE ANÁLISIS GRUPAL 360° (1.e FIX)
 // ==========================================
-const translateDesvio = (code) => {
-  if (code === "ERR_DIRECT") return "Error suma directa (Sin unificar base)";
-  if (code === "ERR_PARTIAL") return "Error suma parcial (Incompleta)";
-  if (code === "ERR_LCD") return "Error cálculo denominador";
-  if (code === "ERR_SIMP") return "Error simplificación";
-  if (code === "ERR_COMPARE") return "Error comparación de magnitudes";
-  if (code === "ERR_GENERIC") return "Desvío general de operación";
-  return code || "Desvío general";
-};
+function GroupAnalysisModal({ students, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
-function slug(text) {
-  if (!text) return "";
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .replace(/_+/g, "_");
+  const total = students.length;
+  const active = students.filter((s) => (s.xpTotal || s.xp || 0) > 0 || (s.misionesCompletadas || []).length > 0).length;
+  const completedOne = students.filter((s) => (s.misionesCompletadas || []).length >= 1).length;
+  const completedAll = students.filter((s) => (s.misionesCompletadas || []).length === 4).length;
+  const withBadge = students.filter((s) => s.badgeEarned).length;
+  const totalXp = students.reduce((acc, s) => acc + (s.xpTotal || s.xp || 0), 0);
+  const avgXp = total ? Math.round(totalXp / total) : 0;
+
+  const pctCompletedOne = total ? Math.round((completedOne / total) * 100) : 0;
+  const pctCompletedAll = total ? Math.round((completedAll / total) * 100) : 0;
+  const pctBadge = total ? Math.round((withBadge / total) * 100) : 0;
+
+  // Conteo de desvíos por tipo
+  const desviosSummary = {
+    ERR_DIRECT: [],
+    ERR_LCD: [],
+    ERR_SIMP: [],
+    ERR_COMPARE: []
+  };
+
+  students.forEach((s) => {
+    const nick = s.name || s.nickname || "Alumno";
+    ["m1", "m2", "m3", "m4"].forEach((mKey) => {
+      const err = s.missions?.[mKey]?.lastErrorCode || s.statsPorMision?.[mKey]?.ultimoError;
+      if (err && desviosSummary[err]) {
+        if (!desviosSummary[err].includes(nick)) {
+          desviosSummary[err].push(nick);
+        }
+      }
+    });
+  });
+
+  return (
+    <div style={styles.topModalOverlay} onClick={onClose}>
+      <div style={styles.topModalCardWide} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "12px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "28px" }}>📊</span>
+            <div>
+              <h2 style={{ margin: 0, color: "#38bdf8", fontSize: "18px", fontWeight: "bold" }}>
+                Análisis Grupal 360° · Diagnóstico del Curso
+              </h2>
+              <span style={{ fontSize: "12px", color: "#94a3b8" }}>Resumen estadístico y pedagógico colectivo</span>
+            </div>
+          </div>
+          <button style={styles.btnCloseModal} onClick={onClose}>✕</button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "16px" }}>
+          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", padding: "10px", borderRadius: "8px", textAlign: "center" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>Total Alumnos</div>
+            <div style={{ fontSize: "20px", fontWeight: "bold", color: "#ffffff" }}>{total}</div>
+            <div style={{ fontSize: "10px", color: "#38bdf8" }}>{active} activos</div>
+          </div>
+          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", padding: "10px", borderRadius: "8px", textAlign: "center" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>≥1 Misión Completa</div>
+            <div style={{ fontSize: "20px", fontWeight: "bold", color: "#38bdf8" }}>{pctCompletedOne}%</div>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>{completedOne} alumnos</div>
+          </div>
+          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", padding: "10px", borderRadius: "8px", textAlign: "center" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>4 Misiones Logradas</div>
+            <div style={{ fontSize: "20px", fontWeight: "bold", color: "#4ade80" }}>{pctCompletedAll}%</div>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>{completedAll} alumnos</div>
+          </div>
+          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", padding: "10px", borderRadius: "8px", textAlign: "center" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>Insignias Acreditadas</div>
+            <div style={{ fontSize: "20px", fontWeight: "bold", color: "#c084fc" }}>{pctBadge}%</div>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>{withBadge} insignias</div>
+          </div>
+        </div>
+
+        {/* DESGLOSE DE DESVÍOS DIDÁCTICOS */}
+        <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "14px", marginBottom: "16px" }}>
+          <h4 style={{ color: "#fb923c", fontSize: "12px", margin: "0 0 10px 0", textTransform: "uppercase" }}>
+            ⚠️ Detección Colectiva de Desvíos Didácticos (Sistema Experto)
+          </h4>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {[
+              { code: "ERR_DIRECT", label: "Error Suma Directa (Sin unificar base)", advice: SYSTEM_EXPERT_ALERTS.ERR_DIRECT },
+              { code: "ERR_LCD", label: "Error Cálculo Denominador Común", advice: SYSTEM_EXPERT_ALERTS.ERR_LCD },
+              { code: "ERR_SIMP", label: "Error Simplificación de Fracción", advice: SYSTEM_EXPERT_ALERTS.ERR_SIMP },
+              { code: "ERR_COMPARE", label: "Error Comparación de Magnitudes", advice: SYSTEM_EXPERT_ALERTS.ERR_COMPARE }
+            ].map((item) => {
+              const affectedList = desviosSummary[item.code] || [];
+              const count = affectedList.length;
+
+              return (
+                <div key={item.code} style={{ backgroundColor: "#0f172a", border: `1px solid ${count > 0 ? "#fb923c" : "#1e293b"}`, borderRadius: "8px", padding: "10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <strong style={{ color: count > 0 ? "#fb923c" : "#64748b", fontSize: "12px" }}>{item.label}</strong>
+                    <span style={{ backgroundColor: "#1e293b", color: count > 0 ? "#fb923c" : "#94a3b8", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                      {count} Alumnos
+                    </span>
+                  </div>
+                  {count > 0 && (
+                    <>
+                      <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>
+                        Alumnos afectados: <strong style={{ color: "#f8fafc" }}>{affectedList.join(", ")}</strong>
+                      </div>
+                      <p style={{ margin: 0, fontSize: "11px", color: "#cbd5e1", lineHeight: "1.4" }}>
+                        {item.advice}
+                      </p>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <button onClick={onClose} style={styles.btnPrimaryIngreso}>
+          ➔ CERRAR ANÁLISIS GRUPAL
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -766,7 +932,6 @@ export default function App() {
     return "ingreso";
   });
   
-  // Registro / Perfil Inicial Docente
   const [perfilDocente, setPerfilDocente] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = sessionStorage.getItem("edumision_docente_profile");
@@ -783,7 +948,6 @@ export default function App() {
   const [tipoEscuela, setTipoEscuela] = useState("IPEM");
   const [escuelaOtra, setEscuelaOtra] = useState("");
 
-  // Cuestionario de Valoración de la Consola Docente
   const [encuestaDocente, setEncuestaDocente] = useState({
     valorPedagogico: "Muy valiosa",
     nivelDificultad: "Adecuada",
@@ -793,9 +957,16 @@ export default function App() {
   });
 
   const [students, setStudents] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showGroupAnalysis, setShowGroupAnalysis] = useState(false); // 1.e FIX
+  const [tableFilter, setTipoFilter] = useState("TODOS"); // 1.c FIX
 
+  const [teacherMessage, setTeacherMessage] = useState("¡Buen viaje espacial, tripulantes! Lean con atención cada consigna.");
+  const [inputMsg, setInputMsg] = useState(teacherMessage);
+  const [pedagogicalPopup, setPedagogicalPopup] = useState(null);
+  const [toastMsg, setToastMsg] = useState(null);
 
-  // 🔄 1. Escuchar 'alumnos' filtrados strictly por docenteId
+  // 🔒 1.b FIX: Escuchar 'alumnos' filtrados estrictamente por docenteId
   useEffect(() => {
     if (!db || !docenteId) {
       setStudents([]);
@@ -813,6 +984,18 @@ export default function App() {
         const list = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
+          const completadas = data.misionesCompletadas || [];
+          const stats = data.statsPorMision || {};
+
+          let totalHelps = 0;
+          let totalErrors = 0;
+          ["m1", "m2", "m3", "m4"].forEach((mKey) => {
+            if (stats[mKey]) {
+              totalHelps += stats[mKey].ayudas || 0;
+              totalErrors += stats[mKey].errores || 0;
+            }
+          });
+
           list.push({
             alumnoId: docSnap.id,
             id: docSnap.id,
@@ -824,19 +1007,16 @@ export default function App() {
             xp: data.xpTotal || 0,
             xpTotal: data.xpTotal || 0,
             badgeEarned: !!data.badgeEarned,
-            misionesCompletadas: data.misionesCompletadas || [],
+            misionesCompletadas: completadas,
             misionesConError: data.misionesConError || [],
-            statsPorMision: data.statsPorMision || {
-              m1: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-              m2: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-              m3: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null },
-              m4: { intentos: 0, errores: 0, ayudas: 0, ultimoError: null }
-            },
+            helpsRequested: totalHelps,
+            errorsCount: totalErrors,
+            statsPorMision: stats,
             missions: {
-              m1: { status: (data.misionesCompletadas || []).includes("m1") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m1?.intentos || 0, helps: data.statsPorMision?.m1?.ayudas || 0, errors: data.statsPorMision?.m1?.errores || 0, lastErrorCode: data.statsPorMision?.m1?.ultimoError },
-              m2: { status: (data.misionesCompletadas || []).includes("m2") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m2?.intentos || 0, helps: data.statsPorMision?.m2?.ayudas || 0, errors: data.statsPorMision?.m2?.errores || 0, lastErrorCode: data.statsPorMision?.m2?.ultimoError },
-              m3: { status: (data.misionesCompletadas || []).includes("m3") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m3?.intentos || 0, helps: data.statsPorMision?.m3?.ayudas || 0, errors: data.statsPorMision?.m3?.errores || 0, lastErrorCode: data.statsPorMision?.m3?.ultimoError },
-              m4: { status: (data.misionesCompletadas || []).includes("m4") ? "completado" : "bloqueada", attempts: data.statsPorMision?.m4?.intentos || 0, helps: data.statsPorMision?.m4?.ayudas || 0, errors: data.statsPorMision?.m4?.errores || 0, lastErrorCode: data.statsPorMision?.m4?.ultimoError }
+              m1: { status: completadas.includes("m1") ? "completado" : "bloqueada", attempts: stats.m1?.intentos || 0, helps: stats.m1?.ayudas || 0, errors: stats.m1?.errores || 0, lastErrorCode: stats.m1?.ultimoError },
+              m2: { status: completadas.includes("m2") ? "completado" : "bloqueada", attempts: stats.m2?.intentos || 0, helps: stats.m2?.ayudas || 0, errors: stats.m2?.errores || 0, lastErrorCode: stats.m2?.ultimoError },
+              m3: { status: completadas.includes("m3") ? "completado" : "bloqueada", attempts: stats.m3?.intentos || 0, helps: stats.m3?.ayudas || 0, errors: stats.m3?.errores || 0, lastErrorCode: stats.m3?.ultimoError },
+              m4: { status: completadas.includes("m4") ? "completado" : "bloqueada", attempts: stats.m4?.intentos || 0, helps: stats.m4?.ayudas || 0, errors: stats.m4?.errores || 0, lastErrorCode: stats.m4?.ultimoError }
             }
           });
         });
@@ -848,7 +1028,7 @@ export default function App() {
     return () => unsubAlumnos();
   }, [docenteId]);
 
-  // 📡 2. Escuchar documento de la propia docente (docentes/{docenteId}) para restaurar perfil y mensaje
+  // Sincronización del perfil docente si existe en Firestore
   useEffect(() => {
     if (!db || !docenteId) return;
 
@@ -866,21 +1046,14 @@ export default function App() {
           }
           if (data.mensajeActual) {
             setTeacherMessage(data.mensajeActual);
-            setInputMsg(data.mensajeActual);
           }
         }
       },
-      (err) => console.error("Error escuchando documento de docente:", err)
+      (err) => console.error("Error al escuchar documento docente:", err)
     );
 
     return () => unsubDocenteDoc();
   }, [docenteId]);
-
-    const [selectedStudent, setSelectedStudent] = useState(null);
-  const [teacherMessage, setTeacherMessage] = useState("¡Buen viaje espacial, tripulantes! Lean con atención cada consigna.");
-  const [inputMsg, setInputMsg] = useState(teacherMessage);
-  const [pedagogicalPopup, setPedagogicalPopup] = useState(null); // 'm1', 'm2', 'm3', 'm4'
-  const [toastMsg, setToastMsg] = useState(null);
 
   const totalStudents = students.length;
   const atLeastOneCompleted = students.filter(
@@ -896,15 +1069,27 @@ export default function App() {
   const badgePercentage = totalStudents ? Math.round((badgesAwarded / totalStudents) * 100) : 0;
 
   const errorsCount = {
-    ERR_DIRECT: students.filter((s) => s.missions.m1.lastErrorCode === "ERR_DIRECT" || s.missions.m2.lastErrorCode === "ERR_DIRECT").length,
-    ERR_PARTIAL: students.filter((s) => s.missions.m2.lastErrorCode === "ERR_PARTIAL" || s.missions.m1.lastErrorCode === "ERR_PARTIAL").length,
-    ERR_LCD: students.filter((s) => s.missions.m3.lastErrorCode === "ERR_LCD" || s.missions.m4.lastErrorCode === "ERR_LCD").length,
-    ERR_COMPARE: students.filter((s) => s.missions.m4.lastErrorCode === "ERR_COMPARE").length
+    ERR_DIRECT: students.filter((s) => s.missions?.m1?.lastErrorCode === "ERR_DIRECT" || s.missions?.m2?.lastErrorCode === "ERR_DIRECT" || s.statsPorMision?.m1?.ultimoError === "ERR_DIRECT" || s.statsPorMision?.m2?.ultimoError === "ERR_DIRECT").length,
+    ERR_PARTIAL: students.filter((s) => s.missions?.m2?.lastErrorCode === "ERR_PARTIAL" || s.missions?.m1?.lastErrorCode === "ERR_PARTIAL" || s.statsPorMision?.m2?.ultimoError === "ERR_PARTIAL").length,
+    ERR_LCD: students.filter((s) => s.missions?.m3?.lastErrorCode === "ERR_LCD" || s.missions?.m4?.lastErrorCode === "ERR_LCD" || s.statsPorMision?.m3?.ultimoError === "ERR_LCD" || s.statsPorMision?.m4?.ultimoError === "ERR_LCD").length,
+    ERR_COMPARE: students.filter((s) => s.missions?.m4?.lastErrorCode === "ERR_COMPARE" || s.statsPorMision?.m4?.ultimoError === "ERR_COMPARE").length
   };
 
   const showToast = (msg) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 4000);
+  };
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("edumision_docente_id");
+      sessionStorage.removeItem("edumision_docente_profile");
+    }
+    setDocenteId(null);
+    setStudents([]);
+    setPerfilDocente({ nombre: "", escuela: "IPEM", curso: "1° Año" });
+    setFaseDocente("ingreso");
+    showToast("🔒 Sesión de docente cerrada. Podés ingresar con otra cuenta.");
   };
 
   const handleGuardarPerfilDocente = async (e) => {
@@ -915,23 +1100,27 @@ export default function App() {
       return;
     }
 
-    const dId = `${slug(perfilDocente.nombre)}__${slug(finalEscuela)}__${slug(perfilDocente.curso)}`;
+    const updatedProfile = {
+      nombre: perfilDocente.nombre.trim(),
+      escuela: finalEscuela,
+      curso: perfilDocente.curso || "1° Año"
+    };
+
+    const dId = `${slug(updatedProfile.nombre)}__${slug(updatedProfile.escuela)}__${slug(updatedProfile.curso)}`;
 
     if (db) {
       try {
         const snap = await getDoc(doc(db, "docentes", dId));
         if (snap.exists()) {
           const data = snap.data();
-          setPerfilDocente({
-            nombre: data.nombre || perfilDocente.nombre,
-            escuela: data.escuela || finalEscuela,
-            curso: data.curso || perfilDocente.curso
-          });
+          updatedProfile.nombre = data.nombre || updatedProfile.nombre;
+          updatedProfile.escuela = data.escuela || updatedProfile.escuela;
+          updatedProfile.curso = data.curso || updatedProfile.curso;
         } else {
           await setDoc(doc(db, "docentes", dId), {
-            nombre: perfilDocente.nombre,
-            escuela: finalEscuela,
-            curso: perfilDocente.curso || "1° Año",
+            nombre: updatedProfile.nombre,
+            escuela: updatedProfile.escuela,
+            curso: updatedProfile.curso,
             codigoAcceso: Math.floor(100000 + Math.random() * 900000).toString(),
             activo: true,
             creadoEn: serverTimestamp()
@@ -942,11 +1131,6 @@ export default function App() {
       }
     }
 
-    const updatedProfile = {
-      nombre: perfilDocente.nombre.trim(),
-      escuela: finalEscuela,
-      curso: perfilDocente.curso || "1° Año"
-    };
     setPerfilDocente(updatedProfile);
     setDocenteId(dId);
     sessionStorage.setItem("edumision_docente_id", dId);
@@ -955,12 +1139,37 @@ export default function App() {
     showToast(`👩‍🏫 Bienvenida/o ${updatedProfile.nombre} (${finalEscuela})`);
   };
 
-  const handleEnviarEncuestaDocente = (e) => {
+  // 1.f FIX: Guardar valoración del docente en Firestore en collection("valoraciones_docentes")
+  const handleEnviarEncuestaDocente = async (e) => {
     e.preventDefault();
+    if (db) {
+      try {
+        await addDoc(collection(db, "valoraciones_docentes"), {
+          docenteId: docenteId || null,
+          nombreDocente: perfilDocente.nombre || "Docente",
+          escuela: perfilDocente.escuela || "",
+          curso: perfilDocente.curso || "",
+          respuestas: encuestaDocente,
+          fecha: serverTimestamp()
+        });
+
+        if (docenteId) {
+          await setDoc(
+            doc(db, "docentes", docenteId),
+            { encuestaCompletada: true, ultimaValoracion: encuestaDocente },
+            { merge: true }
+          );
+        }
+        showToast("✉️ ¡Gracias Profe! Tu valoración fue guardada en Firebase y enviada a Control Central.");
+      } catch (err) {
+        console.error("Error al enviar valoración docente:", err);
+        showToast("⚠️ No se pudo guardar la valoración, verificá tu conexión.");
+      }
+    }
     setFaseDocente("panel");
-    showToast("✉️ ¡Gracias Profe! Tu valoración y sugerencias fueron enviadas con éxito a Control Central.");
   };
 
+  // 1.d FIX: Transmitir mensaje grupal a la cabina de los alumnos
   const handleSendMessage = async () => {
     if (!docenteId || !db) {
       alert("No se pudo identificar la cuenta del docente.");
@@ -975,20 +1184,29 @@ export default function App() {
         },
         { merge: true }
       );
-      showToast("📢 Transmisión enviada a las cabinas de tus alumnos.");
+      setTeacherMessage(inputMsg);
+      showToast(`📢 Transmisión enviada a las cabinas: "${inputMsg}"`);
     } catch (err) {
       console.error("Error al transmitir mensaje:", err);
       alert("No se pudo transmitir el mensaje.");
     }
   };
 
+  // 1.c FIX: Filtrado rápido de estudiantes para visualización inmediata
+  const filteredStudents = students.filter((s) => {
+    const len = (s.misionesCompletadas || []).length;
+    if (tableFilter === "COMPLETOS") return len === 4;
+    if (tableFilter === "EN_CURSO") return len > 0 && len < 4;
+    if (tableFilter === "DESVIOS") return (s.errorsCount || 0) > 0;
+    if (tableFilter === "SIN_INICIAR") return len === 0;
+    return true;
+  });
+
   return (
     <div style={styles.dashboardContainer}>
       {toastMsg && <div style={styles.toastCard}>{toastMsg}</div>}
 
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* 1. FORMULARIO DE INGRESO Y BIENVENIDA DOCENTE             */}
-      {/* ────────────────────────────────────────────────────────── */}
+      {/* 1. FORMULARIO DE INGRESO Y BIENVENIDA DOCENTE */}
       {faseDocente === "ingreso" && (
         <div style={styles.cardBoxIngreso}>
           <div style={{ fontSize: "52px", marginBottom: "8px", textAlign: "center" }}>🪐</div>
@@ -996,7 +1214,7 @@ export default function App() {
             ¡Bienvenida/o a EduMisión Córdoba!
           </h2>
           <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: "1.5", marginBottom: "20px", textAlign: "center" }}>
-            Muchas gracias por formar parte de esta experiencia. Este es un <strong>proyecto piloto experimental</strong> diseñado para poner a prueba nuevas formas de acompañar el aprendizaje de la matemática en el aula.
+            Muchas gracias por formar parte de esta experiencia. Este es un <strong>proyecto piloto experimental</strong> diseñado para acompañar el aprendizaje de la matemática en el aula.
           </p>
 
           <form onSubmit={handleGuardarPerfilDocente} style={styles.formGrid}>
@@ -1063,13 +1281,10 @@ export default function App() {
               📢 <strong>¿Qué vas a poder ver y hacer en tu panel?</strong><br />
               <ul style={{ margin: "8px 0 8px 18px", padding: 0, fontSize: "13px", color: "#e2e8f0" }}>
                 <li style={{ marginBottom: "6px" }}><strong>Monitorear el avance del grupo:</strong> Seguimiento visual del progreso de tus estudiantes en las 4 misiones de fracciones.</li>
-                <li style={{ marginBottom: "6px" }}><strong>Diagnóstico automático de desvíos:</strong> Detección de patrones comunes (<em>como la suma directa de denominadores</em>) con alertas didácticas inmediatas, <strong>sin recargar tu trabajo diario</strong>, ofreciéndote una herramienta extra de apoyo para la clase.</li>
+                <li style={{ marginBottom: "6px" }}><strong>Diagnóstico automático de desvíos:</strong> Detección de patrones comunes con alertas didácticas inmediatas para la clase presencial.</li>
                 <li style={{ marginBottom: "6px" }}><strong>Comunicación colectiva:</strong> Envío de consejos o consignas breves directamente a las pantallas de juego de tus alumnos.</li>
-                <li style={{ marginBottom: "6px" }}><strong>Acompañamiento familiar:</strong> Generación automática de síntesis pedagógicas de desempeño para compartir con los padres a través de Ciudadano Digital (CiDi).</li>
+                <li style={{ marginBottom: "6px" }}><strong>Acompañamiento familiar:</strong> Síntesis pedagógicas automáticas para compartir con los padres vía Ciudadano Digital (CiDi).</li>
               </ul>
-              <div style={{ marginTop: "10px", fontSize: "12px", color: "#38bdf8", borderTop: "1px solid #334155", paddingTop: "8px" }}>
-                📌 <em>Tu experiencia y opinión como docente son fundamentales para validar este prototipo. Te pedimos que, durante o al finalizar la prueba, nos dejes tus comentarios haciendo clic en el botón superior:</em> <strong>[ 📝 Valorar Consola y Sugerir Mejoras ]</strong>
-              </div>
             </div>
 
             <button type="submit" style={styles.btnPrimaryIngreso}>
@@ -1079,29 +1294,35 @@ export default function App() {
         </div>
       )}
 
-      {/* ────────────────────────────────────────────────────────── */}
+      {/* 2. PANEL PRINCIPAL DOCENTE */}
       {faseDocente === "panel" && (
         <>
           <header style={styles.dashboardHeader}>
             <div>
               <h1 style={styles.dashboardTitle}>Consola de Monitoreo Docente</h1>
               <p style={styles.dashboardSubtitle}>
-                {perfilDocente.nombre} · {perfilDocente.escuela} ({perfilDocente.curso})
+                {perfilDocente.nombre || "Profe"} · {perfilDocente.escuela || "Escuela"} ({perfilDocente.curso || "1° Año"})
               </p>
             </div>
 
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-              <button
-                onClick={() => setFaseDocente("evaluacion")}
-                style={styles.btnValoracionTop}
-              >
-                📝 VALORAR CONSOLA Y SUGERIR MEJORAS
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+              <button onClick={() => setShowGroupAnalysis(true)} style={styles.btnGroupAnalysisTop}>
+                📊 ANÁLISIS GRUPAL 360°
               </button>
+
+              <button onClick={() => setFaseDocente("evaluacion")} style={styles.btnValoracionTop}>
+                📝 VALORAR CONSOLA
+              </button>
+
+              <button onClick={handleLogout} style={styles.btnLogout} title="Cerrar sesión e ingresar con otra cuenta">
+                🔒 Salir
+              </button>
+
               <span style={styles.teacherBadge}>👩‍🏫 DOCENTE AUTENTICADA</span>
             </div>
           </header>
 
-          {/* FICHA POPUP PEDAGÓGICA Y OBJETIVOS SI SE HACE CLICK EN UNA MISIÓN */}
+          {/* FICHA POPUP PEDAGÓGICA AL HACER CLICK EN CADA MISIÓN */}
           {pedagogicalPopup && MISSION_PEDAGOGICAL_INFO[pedagogicalPopup] && (
             <div style={styles.topModalOverlay} onClick={() => setPedagogicalPopup(null)}>
               <div style={styles.topModalCardWide} onClick={(e) => e.stopPropagation()}>
@@ -1129,6 +1350,7 @@ export default function App() {
             </div>
           )}
 
+          {/* 3 TARJETAS KPI */}
           <div style={styles.kpiGrid}>
             <div style={{ ...styles.kpiCard, borderLeft: "4px solid #38bdf8" }}>
               <p style={styles.kpiLabel}>🔵 % AVANCE (AL MENOS 1 MISIÓN)</p>
@@ -1147,10 +1369,13 @@ export default function App() {
             </div>
           </div>
 
+          {/* 1.d FIX: CONTROLES DE TRANSMISIÓN GRUPAL EN TIEMPO REAL */}
           <div style={styles.dashboardTeacherControlsCard}>
-            <h3 style={{ ...styles.cardSectionTitle, color: "#c084fc", margin: 0 }}>📢 Enviar Consejos Colectivos a las Cabinas</h3>
+            <h3 style={{ ...styles.cardSectionTitle, color: "#c084fc", margin: 0 }}>
+              📢 Enviar Consejos Colectivos a las Cabinas en Vivo
+            </h3>
             <p style={{ ...styles.instructions, margin: 0 }}>
-              Escribí un aviso o sugerencia de aula. Aparecerá inmediatamente en las pantallas de todos los estudiantes.
+              Escribí un aviso o sugerencia de aula. Aparecerá inmediatamente en las pantallas de todos los estudiantes asignados a tu cuenta.
             </p>
             <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
               <input
@@ -1169,11 +1394,36 @@ export default function App() {
           <div style={styles.dashboardGrid}>
             <div style={styles.leftColumn}>
               <div style={styles.dashboardCard}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                  <h3 style={{ ...styles.cardSectionTitle, margin: 0 }}>Listado General de Alumnos</h3>
-                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>
-                    Tocá ℹ️ en cada misión para ver su ficha pedagógica
-                  </span>
+                
+                {/* 1.c FIX: FILTROS DE VISUALIZACIÓN RÁPIDA DE ALUMNOS */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+                  <h3 style={{ ...styles.cardSectionTitle, margin: 0 }}>Listado General de Alumnos ({filteredStudents.length})</h3>
+                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                    {[
+                      { key: "TODOS", label: "Todos" },
+                      { key: "COMPLETOS", label: "🟢 4 Misiones" },
+                      { key: "EN_CURSO", label: "⚡ En Curso" },
+                      { key: "DESVIOS", label: "⚠️ Con Desvíos" },
+                      { key: "SIN_INICIAR", label: "⏳ Sin Iniciar" }
+                    ].map((f) => (
+                      <button
+                        key={f.key}
+                        onClick={() => setTipoFilter(f.key)}
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          border: tableFilter === f.key ? "1px solid #38bdf8" : "1px solid #334155",
+                          backgroundColor: tableFilter === f.key ? "rgba(56, 189, 248, 0.2)" : "#020617",
+                          color: tableFilter === f.key ? "#38bdf8" : "#94a3b8",
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          cursor: "pointer"
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <table style={styles.table}>
@@ -1182,66 +1432,80 @@ export default function App() {
                       <th style={styles.th}>Alumno (Nave)</th>
                       <th style={styles.th}>
                         <button onClick={() => setPedagogicalPopup("m1")} style={styles.btnPedagogicalPill}>
-                          M1 (Agua) ℹ️
+                          M1 ℹ️
                         </button>
                       </th>
                       <th style={styles.th}>
                         <button onClick={() => setPedagogicalPopup("m2")} style={styles.btnPedagogicalPill}>
-                          M2 (Combust.) ℹ️
+                          M2 ℹ️
                         </button>
                       </th>
                       <th style={styles.th}>
                         <button onClick={() => setPedagogicalPopup("m3")} style={styles.btnPedagogicalPill}>
-                          M3 (Víveres) ℹ️
+                          M3 ℹ️
                         </button>
                       </th>
                       <th style={styles.th}>
                         <button onClick={() => setPedagogicalPopup("m4")} style={styles.btnPedagogicalPill}>
-                          M4 (Despegue) ℹ️
+                          M4 ℹ️
                         </button>
                       </th>
-                      <th style={styles.th}>Experiencia</th>
+                      <th style={styles.th}>Avance / XP</th>
                       <th style={styles.th}>Acción</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {students.length === 0 ? (
+                    {/* 1.b FIX: SI NO TIENE ALUMNOS ASIGNADOS MUESTRA PANTALLA LIMPIA */}
+                    {filteredStudents.length === 0 ? (
                       <tr>
-                        <td colSpan="7" style={{ fontStyle: "italic", color: "#64748b", padding: "20px", textAlign: "center" }}>
-                          Aún no tienes alumnos vinculados por Control Central. Solicitá su vinculación al administrador.
+                        <td colSpan="7" style={{ fontStyle: "italic", color: "#64748b", padding: "24px", textAlign: "center", lineHeight: "1.6" }}>
+                          {students.length === 0
+                            ? "Todavía no tenés alumnos asignados. Pedile al Control Central que los vincule a tu cuenta."
+                            : "No hay alumnos que coincidan con el filtro seleccionado."}
                         </td>
                       </tr>
                     ) : (
-                      students.map((student) => (
-                        <tr key={student.id} style={styles.tr}>
-                          <td style={{ ...styles.td, fontWeight: "bold", color: "#ffffff" }}>
-                            {student.name} <br />
-                            <span style={{ fontSize: "10px", color: "#94a3b8" }}>{student.escuela}</span>
-                          </td>
-                          <td style={styles.td}>{renderMissionCell(student, "m1")}</td>
-                          <td style={styles.td}>{renderMissionCell(student, "m2")}</td>
-                          <td style={styles.td}>{renderMissionCell(student, "m3")}</td>
-                          <td style={styles.td}>{renderMissionCell(student, "m4")}</td>
-                          <td style={styles.td}>
-                            <strong style={{ color: "#38bdf8" }}>{student.xp} XP</strong>
-                          </td>
-                          <td style={styles.td}>
-                            <button onClick={() => setSelectedStudent(student)} style={styles.btnTableAction}>
-                              Analizar
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                      filteredStudents.map((student) => {
+                        const completadasCount = (student.misionesCompletadas || []).length;
+                        return (
+                          <tr key={student.id} style={styles.tr}>
+                            <td style={{ ...styles.td, fontWeight: "bold", color: "#ffffff" }}>
+                              {student.name || student.nickname || "Alumno"} <br />
+                              <span style={{ fontSize: "10px", color: "#94a3b8" }}>{student.escuela || "Escuela"}</span>
+                            </td>
+                            <td style={styles.td}>{renderMissionCell(student, "m1")}</td>
+                            <td style={styles.td}>{renderMissionCell(student, "m2")}</td>
+                            <td style={styles.td}>{renderMissionCell(student, "m3")}</td>
+                            <td style={styles.td}>{renderMissionCell(student, "m4")}</td>
+                            <td style={styles.td}>
+                              <div style={{ fontSize: "11px", fontWeight: "bold", color: "#38bdf8" }}>
+                                {student.xpTotal || student.xp || 0} XP
+                              </div>
+                              <div style={{ fontSize: "10px", color: completadasCount === 4 ? "#4ade80" : "#94a3b8" }}>
+                                {completadasCount === 4 ? "🏆 Insignia" : `${completadasCount}/4 Logradas`}
+                              </div>
+                            </td>
+                            <td style={styles.td}>
+                              {/* 1.a FIX: BOTÓN ANALIZAR CON RENDERIZADO SEGURO */}
+                              <button onClick={() => setSelectedStudent(student)} style={styles.btnTableAction}>
+                                Analizar
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
-          <div style={styles.rightColumn}>
+
+            {/* COLUMNA DERECHA: DIAGNÓSTICO COLECTIVO DEL SISTEMA EXPERTO */}
+            <div style={styles.rightColumn}>
               <div style={styles.dashboardCard}>
                 <h3 style={styles.cardSectionTitle}>Diagnóstico Colectivo (Sistema Experto)</h3>
                 <p style={styles.instructions}>
-                  El motor agrupa los desvíos detectados en el piloto para facilitar la intervención presencial del docente.
+                  El motor agrupa los desvíos detectados para facilitar la intervención presencial del docente en la clase.
                 </p>
 
                 <div style={styles.alertsContainer}>
@@ -1281,20 +1545,25 @@ export default function App() {
             </div>
           </div>
 
-          {/* MODAL CENTRADO Y SUPERIOR DE ANÁLISIS INDIVIDUAL */}
+          {/* 1.a FIX: MODAL DE ANÁLISIS INDIVIDUAL CON FALLBACKS SEGUROS */}
           {selectedStudent && (
             <DrawerWithSendButton
               student={selectedStudent}
               onClose={() => setSelectedStudent(null)}
             />
           )}
+
+          {/* 1.e FIX: MODAL DE ANÁLISIS GRUPAL 360° */}
+          {showGroupAnalysis && (
+            <GroupAnalysisModal
+              students={students}
+              onClose={() => setShowGroupAnalysis(false)}
+            />
+          )}
         </>
       )}
 
-      {/* ────────────────────────────────────────────────────────── */}
-      {/* 3. CUESTIONARIO FINAL DE VALORACIÓN Y EVALUACIÓN DOCENTE   */}
-{/* 3. CUESTIONARIO FINAL DE VALORACIÓN Y EVALUACIÓN DOCENTE   */}
-      {/* ────────────────────────────────────────────────────────── */}
+      {/* 3. CUESTIONARIO FINAL DE VALORACIÓN Y EVALUACIÓN DOCENTE (1.f FIX) */}
       {faseDocente === "evaluacion" && (
         <div style={styles.cardBoxIngreso}>
           <div style={{ fontSize: "52px", marginBottom: "8px", textAlign: "center" }}>📝</div>
@@ -1302,13 +1571,13 @@ export default function App() {
             Valoración Pedagógica del Piloto (Docente)
           </h2>
           <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: "1.5", marginBottom: "20px", textAlign: "center" }}>
-            Tu retroalimentación nos ayuda a evaluar y perfeccionar la herramienta.
+            Tu retroalimentación se guarda automáticamente en Firebase y es consultable por Control Central.
           </p>
 
           <form onSubmit={handleEnviarEncuestaDocente} style={styles.formGrid}>
             <div style={styles.formGroup}>
               <label style={styles.surveyLabelDocente}>
-                1. Valor Pedagógico de las Misiones: ¿Cómo evaluás la propuesta de las 4 misiones para el abordaje de fracciones?
+                1. Valor Pedagógico de las Misiones: ¿Cómo evaluás la propuesta de las 4 misiones de fracciones?
               </label>
               <div style={styles.radioGroup}>
                 {["Muy valiosa", "Valiosa", "Poco valiosa", "No aporta al aula"].map((opt) => (
@@ -1328,7 +1597,7 @@ export default function App() {
 
             <div style={styles.formGroup}>
               <label style={styles.surveyLabelDocente}>
-                2. Nivel de Dificultad: ¿Cómo percibiste la dificultad de los desafíos para el nivel de tus alumnos?
+                2. Nivel de Dificultad: ¿Cómo percibiste la dificultad de los desafíos para tus alumnos?
               </label>
               <div style={styles.radioGroup}>
                 {["Adecuada", "Muy alta", "Muy baja", "Desigual según la misión"].map((opt) => (
@@ -1348,7 +1617,7 @@ export default function App() {
 
             <div style={styles.formGroup}>
               <label style={styles.surveyLabelDocente}>
-                3. Contacto Grupal (Mensajes a Cabinas): ¿Qué tan útil te resultó la función de enviar avisos colectivos a las pantallas de los estudiantes?
+                3. Contacto Grupal (Mensajes a Cabinas): ¿Qué tan útil te resultó transmitir avisos colectivos en vivo?
               </label>
               <div style={styles.radioGroup}>
                 {["Muy útil", "Útil", "Poco útil", "No la utilicé"].map((opt) => (
@@ -1368,7 +1637,7 @@ export default function App() {
 
             <div style={styles.formGroup}>
               <label style={styles.surveyLabelDocente}>
-                4. Síntesis de Desempeño para Familias (vía CiDi): ¿Qué valor le encontrás a enviar informes automáticos con consejos lúdicos al hogar?
+                4. Síntesis para Familias (vía CiDi): ¿Qué valor le encontrás a compartir sugerencias pedagógicas con el hogar?
               </label>
               <div style={styles.radioGroup}>
                 {["Alto valor para involucrar a los padres", "Moderado", "Escaso", "Prefiero comunicación tradicional"].map((opt) => (
@@ -1388,7 +1657,7 @@ export default function App() {
 
             <div style={styles.formGroup}>
               <label style={styles.surveyLabelDocente}>
-                5. Propuestas de Mejora: ¿Qué cambios, agregados o correcciones nos sugerís para que este panel sea aún más práctico en tu trabajo diario?
+                5. Propuestas de Mejora: ¿Qué cambios o sugerencias nos dejás para perfeccionar este panel?
               </label>
               <textarea
                 placeholder="Escribí aquí tus comentarios, ideas o sugerencias de mejora..."
@@ -1401,7 +1670,7 @@ export default function App() {
 
             <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
               <button type="submit" style={styles.btnPrimaryIngreso}>
-                ✉️ ENVIAR VALORACIÓN A CONTROL CENTRAL
+                ✉️ GUARDAR Y ENVIAR VALORACIÓN A CONTROL CENTRAL
               </button>
               <button
                 type="button"
@@ -1417,4 +1686,3 @@ export default function App() {
     </div>
   );
 }
-
