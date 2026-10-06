@@ -29,64 +29,57 @@ function slug(text) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$\g, "")
+    .replace(/^_+|_+$/g, "")
     .replace(/_+/g, "_");
 }
 
 // ==========================================
-// 🛠️ HELPER EXPORTADOR A EXCEL / LIBREOFFICE (.CSV NATIVO)
+// 📊 EXPORTADOR DE INFORME FORMATEADO EXCEL (.XLS HTML) VINCULADO CON VALORACIONES
 // ==========================================
-// ==========================================
-// 🛠️ HELPER EXPORTADOR INTERACTIVO .XLS / HTML FORMATEADO PARA EXCEL
-// ==========================================
-const exportToFormattedExcel = (filename, docentes, alumnos) => {
+const exportToFormattedExcelWithSurveys = (filename, docentes, alumnos, valoraciones) => {
   const bom = "\uFEFF";
-  
   const totalAlumnos = alumnos.length;
   const asignadosCount = alumnos.filter((a) => a.docenteId).length;
   const conInsigniaCount = alumnos.filter((a) => a.badgeEarned).length;
-  const totalXp = alumnos.reduce((acc, a) => acc + (a.xpTotal || 0), 0);
+  const totalXp = alumnos.reduce((acc, a) => acc + (a.xpTotal || a.xp || 0), 0);
   const avgXp = totalAlumnos ? Math.round(totalXp / totalAlumnos) : 0;
 
-  const htmlContent = `${bom}
-<!DOCTYPE html>
+  const htmlContent = `${bom}<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
+  <title>EduMisión Córdoba - Reporte Consolidado Provincial</title>
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 20px; }
-    .header-title { font-size: 20px; font-weight: bold; color: #0284c7; margin-bottom: 4px; }
-    .header-sub { font-size: 12px; color: #64748b; margin-bottom: 16px; }
-    
+    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; background-color: #ffffff; color: #1e293b; }
+    h1 { color: #0284c7; font-size: 22px; margin-bottom: 4px; }
+    h2 { color: #0f172a; font-size: 16px; border-bottom: 2px solid #0284c7; padding-bottom: 6px; margin-top: 24px; }
     .kpi-table { border-collapse: collapse; margin-bottom: 20px; }
-    .kpi-table td { border: 1px solid #cbd5e1; padding: 10px 16px; text-align: center; background-color: #f8fafc; }
-    .kpi-label { font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; }
-    .kpi-val { font-size: 18px; color: #0284c7; font-weight: bold; }
-    
-    .data-table { border-collapse: collapse; width: 100%; font-size: 12px; }
-    .data-table th { background-color: #0284c7; color: #ffffff; font-weight: bold; padding: 10px; border: 1px solid #0369a1; text-align: left; }
-    .data-table td { padding: 8px 10px; border: 1px solid #e2e8f0; vertical-align: middle; }
-    .data-table tr:nth-child(even) { background-color: #f8fafc; }
-    
-    .tag-assigned { background-color: #dcfce7; color: #15803d; font-weight: bold; padding: 3px 8px; border-radius: 4px; border: 1px solid #86efac; }
-    .tag-unassigned { background-color: #ffedd5; color: #c2410c; font-weight: bold; padding: 3px 8px; border-radius: 4px; border: 1px solid #fdba74; }
-    .tag-badge { background-color: #fef3c7; color: #b45309; font-weight: bold; padding: 3px 8px; border-radius: 4px; border: 1px solid #fcd34d; }
-    .tag-pending { background-color: #f1f5f9; color: #64748b; padding: 3px 8px; border-radius: 4px; }
+    .kpi-table td { border: 1px solid #cbd5e1; padding: 12px 20px; text-align: center; background-color: #f8fafc; }
+    .kpi-title { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: bold; }
+    .kpi-val { font-size: 20px; font-weight: bold; color: #0284c7; }
+    .data-table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 10px; }
+    .data-table th { background-color: #0284c7; color: #ffffff; padding: 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
+    .data-table td { padding: 8px 10px; border: 1px solid #e2e8f0; }
+    .tag-assigned { background-color: #dcfce7; color: #15803d; font-weight: bold; padding: 3px 8px; border-radius: 4px; }
+    .tag-unassigned { background-color: #ffedd5; color: #c2410c; font-weight: bold; padding: 3px 8px; border-radius: 4px; }
+    .tag-badge { background-color: #fef3c7; color: #b45309; font-weight: bold; padding: 3px 8px; border-radius: 4px; }
   </style>
 </head>
 <body>
-  <div class="header-title">🏛️ EduMisión Córdoba — Reporte Consolidado Provincial</div>
-  <div class="header-sub">Generado el: ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR')}</div>
+  <h1>🏛️ EduMisión Córdoba — Reporte Consolidado Provincial</h1>
+  <p style="color:#64748b; font-size:12px;">Generado el: ${new Date().toLocaleString("es-AR")}</p>
 
   <table class="kpi-table">
     <tr>
-      <td><div class="kpi-label">Total Alumnos</div><div class="kpi-val">${totalAlumnos}</div></td>
-      <td><div class="kpi-label">Asignados a Docente</div><div class="kpi-val">${asignadosCount}</div></td>
-      <td><div class="kpi-label">Insignias Otorgadas</div><div class="kpi-val">${conInsigniaCount}</div></td>
-      <td><div class="kpi-label">Promedio XP</div><div class="kpi-val">${avgXp} XP</div></td>
+      <td><div class="kpi-title">Total Alumnos</div><div class="kpi-val">${totalAlumnos}</div></td>
+      <td><div class="kpi-title">Alumnos Asignados</div><div class="kpi-val">${asignadosCount}</div></td>
+      <td><div class="kpi-title">Insignias Acreditadas</div><div class="kpi-val">${conInsigniaCount}</div></td>
+      <td><div class="kpi-title">Promedio XP</div><div class="kpi-val">${avgXp} XP</div></td>
+      <td><div class="kpi-title">Valoraciones Docentes</div><div class="kpi-val">${valoraciones.length}</div></td>
     </tr>
   </table>
 
+  <h2>1️⃣ MATRÍCULA Y RENDIMIENTO DE ESTUDIANTES Y DOCENTES</h2>
   <table class="data-table">
     <thead>
       <tr>
@@ -95,35 +88,62 @@ const exportToFormattedExcel = (filename, docentes, alumnos) => {
         <th>Escuela</th>
         <th>Curso</th>
         <th>Docente Asignado</th>
-        <th>Código Profe</th>
-        <th>XP Total</th>
+        <th>Código Acceso Docente</th>
+        <th>XP Acumulado</th>
         <th>Misiones Completadas</th>
-        <th>% Avance</th>
         <th>Estado Insignia</th>
       </tr>
     </thead>
     <tbody>
       ${alumnos.map((a) => {
         const docAssigned = docentes.find((d) => d.id === a.docenteId);
-        const completadas = Array.isArray(a.misionesCompletadas) ? a.misionesCompletadas : [];
-        const mCount = completadas.length;
-        const pctAvance = Math.round((mCount / 4) * 100);
-        const misionesStr = mCount > 0 ? `${mCount}/4 (${completadas.join(", ").toUpperCase()})` : "0/4 (Sin iniciar)";
-        const docenteStr = docAssigned ? docAssigned.nombre : "A designar (Sin asignar)";
-        const codigoStr = docAssigned ? (docAssigned.codigoAcceso || "-") : "-";
-
+        const completadasStr = Array.isArray(a.misionesCompletadas) && a.misionesCompletadas.length > 0
+          ? `${a.misionesCompletadas.length}/4 (${a.misionesCompletadas.join(", ").toUpperCase()})`
+          : "0/4";
         return `
           <tr>
             <td>${a.id}</td>
             <td><strong>${a.nickname || "Alumno"}</strong></td>
             <td>${a.escuela || "-"}</td>
-            <td>${a.curso || "-"}</td>
-            <td>${docAssigned ? `<span class="tag-assigned">👩‍🏫 ${docenteStr}</span>` : `<span class="tag-unassigned">⚡ ${docenteStr}</span>`}</td>
-            <td><code>${codigoStr}</code></td>
-            <td><strong>${a.xpTotal || 0} XP</strong></td>
-            <td>${misionesStr}</td>
-            <td><strong>${pctAvance}%</strong></td>
-            <td>${a.badgeEarned ? `<span class="tag-badge">🏆 Otorgada</span>` : `<span class="tag-pending">En proceso</span>`}</td>
+            <td>${a.curso || "1° Año"}</td>
+            <td>${docAssigned ? `<span class="tag-assigned">👩‍🏫 ${docAssigned.nombre}</span>` : `<span class="tag-unassigned">⚡ A Designar</span>`}</td>
+            <td>${docAssigned ? docAssigned.codigoAcceso || "------" : "-"}</td>
+            <td><strong>${a.xpTotal || a.xp || 0} XP</strong></td>
+            <td>${completadasStr}</td>
+            <td>${a.badgeEarned ? `<span class="tag-badge">🏆 Acreditada</span>` : `En proceso`}</td>
+          </tr>
+        `;
+      }).join("")}
+    </tbody>
+  </table>
+
+  <h2>2️⃣ VALORACIONES PEDAGÓGICAS Y SUGERENCIAS DE LOS DOCENTES (${valoraciones.length})</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Docente</th>
+        <th>Escuela / Curso</th>
+        <th>Valor Pedagógico Misiones</th>
+        <th>Dificultad Percibida</th>
+        <th>Contacto Grupal</th>
+        <th>Síntesis para Familias (CiDi)</th>
+        <th>Propuestas y Sugerencias de Mejora</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${valoraciones.length === 0 ? `
+        <tr><td colSpan="7" style="font-style:italic; color:#64748b; text-align:center;">No hay valoraciones enviadas por docentes todavía.</td></tr>
+      ` : valoraciones.map((v) => {
+        const r = v.respuestas || {};
+        return `
+          <tr>
+            <td><strong>👩‍🏫 ${v.nombreDocente || "Docente"}</strong></td>
+            <td>${v.escuela || "-"} (${v.curso || "-"})</td>
+            <td>${r.valorPedagogico || "-"}</td>
+            <td>${r.nivelDificultad || "-"}</td>
+            <td>${r.contactoGrupal || "-"}</td>
+            <td>${r.sintesisFamilias || "-"}</td>
+            <td>${r.sugerenciasMejora || "Sin comentarios"}</td>
           </tr>
         `;
       }).join("")}
@@ -142,31 +162,7 @@ const exportToFormattedExcel = (filename, docentes, alumnos) => {
   document.body.removeChild(link);
 };
 
-
-const exportToExcelCSV = (filename, headers, rows) => {
-  const bom = "﻿";
-  const csvContent =
-    bom +
-    [
-      headers.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(";"),
-      ...rows.map((row) =>
-        row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(";")
-      )
-    ].join("
-");
-
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
-
 export default function App() {
-  // 🔒 Estado de Autenticación con PIN (sessionStorage)
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem("cc_pin") === PIN_ACCESO;
   });
@@ -176,18 +172,16 @@ export default function App() {
   // Estados de Datos
   const [docentes, setDocentes] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
+  const [valoraciones, setValoraciones] = useState([]); // 2.c FIX
   const [liveLogs, setLiveLogs] = useState([]);
   const [toast, setToast] = useState(null);
 
-  // Estado de Conexión y Errores de Firebase
   const [firestoreError, setFirestoreError] = useState(null);
   const [dbStatus, setDbStatus] = useState("CONECTADO");
 
-  // Selección de Alumnos a Designar (Checkboxes)
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
-
-  // Selección de Docente Destino (Un solo clic en la tarjeta)
   const [targetDocenteId, setTargetDocenteId] = useState(null);
+  const [telemetriaTab, setTelemetriaTab] = useState("RESUMEN"); // 2.a FIX
 
   const showToast = (msg) => {
     setToast(msg);
@@ -205,11 +199,11 @@ export default function App() {
     }
   };
 
-  // 📡 Suscripciones en Tiempo Real a Firestore con Callback de Error
+  // 📡 Suscripciones en Tiempo Real
   useEffect(() => {
     if (!isAuthenticated || !db) return;
 
-    // 1. Suscripción a Docentes
+    // 1. Docentes
     const unsubDocentes = onSnapshot(
       collection(db, "docentes"),
       (snap) => {
@@ -220,13 +214,12 @@ export default function App() {
         setDbStatus("CONECTADO");
       },
       (err) => {
-        console.error("Error en Snapshot Docentes:", err);
-        setFirestoreError(`Error en lectura de 'docentes': ${err.message}`);
-        setDbStatus(`DESCONECTADO / ERROR: ${err.message}`);
+        console.error("Error Snapshot Docentes:", err);
+        setFirestoreError(`Error lectura docentes: ${err.message}`);
       }
     );
 
-    // 2. Suscripción a Alumnos
+    // 2. Alumnos
     const unsubAlumnos = onSnapshot(
       collection(db, "alumnos"),
       (snap) => {
@@ -237,13 +230,23 @@ export default function App() {
         setDbStatus("CONECTADO");
       },
       (err) => {
-        console.error("Error en Snapshot Alumnos:", err);
-        setFirestoreError(`Error en lectura de 'alumnos': ${err.message}`);
-        setDbStatus(`DESCONECTADO / ERROR: ${err.message}`);
+        console.error("Error Snapshot Alumnos:", err);
+        setFirestoreError(`Error lectura alumnos: ${err.message}`);
       }
     );
 
-    // 3. Suscripción a Bitácora (Telemetría xAPI con limit 100)
+    // 3. Valoraciones de Docentes (2.c FIX)
+    const unsubValoraciones = onSnapshot(
+      collection(db, "valoraciones_docentes"),
+      (snap) => {
+        const list = [];
+        snap.forEach((v) => list.push({ id: v.id, ...v.data() }));
+        setValoraciones(list);
+      },
+      (err) => console.error("Error Snapshot Valoraciones:", err)
+    );
+
+    // 4. Bitácora xAPI
     const qBitacora = query(
       collection(db, "bitacora_alumnos"),
       orderBy("fecha", "desc"),
@@ -255,24 +258,18 @@ export default function App() {
         const logs = [];
         snap.forEach((b) => logs.push({ id: b.id, ...b.data() }));
         setLiveLogs(logs);
-        setFirestoreError(null);
-        setDbStatus("CONECTADO");
       },
-      (err) => {
-        console.error("Error en Snapshot Bitácora:", err);
-        setFirestoreError(`Error en lectura de 'bitacora_alumnos': ${err.message}`);
-        setDbStatus(`DESCONECTADO / ERROR: ${err.message}`);
-      }
+      (err) => console.error("Error Snapshot Bitácora:", err)
     );
 
     return () => {
       unsubDocentes();
       unsubAlumnos();
+      unsubValoraciones();
       unsubBitacora();
     };
   }, [isAuthenticated]);
 
-  // 1. ALUMNOS A DESIGNAR: Sin docenteId O con docenteId que no existe en "docentes"
   const docentesIdsSet = new Set(docentes.map((d) => d.id));
   const alumnosADesignar = alumnos.filter(
     (a) => !a.docenteId || !docentesIdsSet.has(a.docenteId)
@@ -282,7 +279,6 @@ export default function App() {
     return alumnos.filter((a) => a.docenteId === docenteId).length;
   };
 
-  // Detección de Docentes Duplicados (Mismo nombre, escuela y curso)
   const isDocenteDuplicado = (docItem) => {
     if (!docItem.nombre || !docItem.escuela || !docItem.curso) return false;
     const nameNorm = docItem.nombre.trim().toLowerCase();
@@ -298,7 +294,6 @@ export default function App() {
     );
   };
 
-  // Selección individual o masiva de tildados
   const handleToggleSelectStudent = (studentId) => {
     setSelectedStudentIds((prev) =>
       prev.includes(studentId)
@@ -315,7 +310,6 @@ export default function App() {
     }
   };
 
-  // Acciones en Sector 1 & 2: Eliminar Ingreso Fallido e Historial en Bitácora
   const handleDeleteStudent = async (alumnoId, studentNick) => {
     if (!alumnoId || !db) return;
     const confirm = window.confirm(
@@ -326,14 +320,12 @@ Esta acción borrará la cuenta del alumno en el servidor y TODO su historial en
     if (!confirm) return;
 
     try {
-      // 1. Buscar todos los registros de la bitácora asociados a este alumnoId
       const qBitacoraAlumno = query(
         collection(db, "bitacora_alumnos"),
         where("alumnoId", "==", alumnoId)
       );
       const logsSnap = await getDocs(qBitacoraAlumno);
 
-      // 2. Ejecutar borrado atómico en lote (Batch): el alumno en 'alumnos' y sus eventos en 'bitacora_alumnos'
       const batch = writeBatch(db);
       batch.delete(doc(db, "alumnos", alumnoId));
 
@@ -344,14 +336,13 @@ Esta acción borrará la cuenta del alumno en el servidor y TODO su historial en
       await batch.commit();
 
       setSelectedStudentIds((prev) => prev.filter((id) => id !== alumnoId));
-      showToast(`❌ Alumno "${studentNick}" e historial de bitácora borrados del servidor.`);
+      showToast(`❌ Alumno "${studentNick}" e historial borrados del servidor.`);
     } catch (err) {
-      console.error("Error eliminando alumno e historial:", err);
+      console.error("Error eliminando alumno:", err);
       alert("No se pudo eliminar el registro del alumno.");
     }
   };
 
-  // Acciones en Sector 2: Desvincular (vuelve a Alumnos a Designar)
   const handleDesvincularStudent = async (alumnoId, studentNick) => {
     if (!alumnoId || !db) return;
     const confirm = window.confirm(
@@ -370,7 +361,6 @@ El alumno volverá a 'Alumnos a designar' conservando su progreso.`
     }
   };
 
-  // Acciones en Sector 2: Asignar Tildados al Docente Destino
   const handleAssignSelectedStudents = async () => {
     if (!targetDocenteId || selectedStudentIds.length === 0 || !db) return;
     const targetDocente = docentes.find((d) => d.id === targetDocenteId);
@@ -392,7 +382,6 @@ El alumno volverá a 'Alumnos a designar' conservando su progreso.`
     }
   };
 
-  // Acciones en Sector 2: Eliminar Profe con writeBatch
   const handleDeleteDocente = async (docItem) => {
     if (!docItem || !db) return;
     const assignedCount = getAlumnosCountForDocente(docItem.id);
@@ -406,18 +395,15 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
     try {
       const batch = writeBatch(db);
 
-      // Poner docenteId: null a todos sus alumnos asignados
       const assignedStudents = alumnos.filter((a) => a.docenteId === docItem.id);
       assignedStudents.forEach((a) => {
         batch.update(doc(db, "alumnos", a.id), { docenteId: null });
       });
 
-      // Borrar el documento del docente
       batch.delete(doc(db, "docentes", docItem.id));
 
       await batch.commit();
 
-      // Limpiar selección de destino si era este docente
       if (targetDocenteId === docItem.id) {
         setTargetDocenteId(null);
       }
@@ -429,13 +415,25 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
     }
   };
 
-  // Exportación de Reporte Formateado (.XLS Excel) y CSV
+  // 2.c FIX: Exportar Reporte Consolidado (.XLS / Excel)
   const handleExportData = () => {
-    exportToFormattedExcel(`EduMision_ControlCentral_Reporte_${new Date().toISOString().slice(0, 10)}.xls`, docentes, alumnos);
-    showToast("📊 Reporte Formateado (.xls) exportado con éxito para Excel.");
+    exportToFormattedExcelWithSurveys(
+      `EduMision_Córdoba_Reporte_Consolidado_${new Date().toISOString().slice(0, 10)}.xls`,
+      docentes,
+      alumnos,
+      valoraciones
+    );
+    showToast("📊 Reporte Consolidado (.xls) con Valoraciones Docentes exportado con éxito.");
   };
 
-  // 🔒 PANTALLA DE BLOQUEO POR PIN
+  // 2.a FIX: Cálculo de Métricas Resumidas de Telemetría
+  const telemetriaResumen = {
+    totalEventos: liveLogs.length,
+    completadas: liveLogs.filter((l) => (l.evento || "").includes("completada") || (l.evento || "").includes("Acierto")).length,
+    desvios: liveLogs.filter((l) => (l.evento || "").includes("Desvío") || l.esErrorReal).length,
+    pistas: liveLogs.filter((l) => (l.evento || "").includes("pista") || (l.evento || "").includes("equivocando")).length
+  };
+
   if (!isAuthenticated) {
     return (
       <div style={{ backgroundColor: "#030712", color: "#f8fafc", minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontFamily: "sans-serif", padding: "20px" }}>
@@ -473,12 +471,11 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
   return (
     <div style={{ backgroundColor: "#030712", color: "#f8fafc", minHeight: "100vh", fontFamily: "sans-serif", padding: "20px" }}>
       {toast && (
-        <div style={{ position: "fixed", bottom: "20px", right: "20px", backgroundColor: "#0284c7", color: "#fff", padding: "12px 20px", borderRadius: "10px", fontWeight: "bold", zIndex: 1000, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
+        <div style={{ position: "fixed", bottom: "20px", right: "20px", backgroundColor: "#0284c7", color: "#fff", padding: "12px 20px", borderRadius: "10px", fontWeight: "bold", zIndex: 10000, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
           {toast}
         </div>
       )}
 
-      {/* BANNER ROJO DE ERROR DE FIREBASE */}
       {firestoreError && (
         <div style={{ backgroundColor: "#7f1d1d", border: "2px solid #ef4444", color: "#fca5a5", padding: "12px 20px", borderRadius: "10px", fontWeight: "bold", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>⚠️ {firestoreError}</span>
@@ -488,17 +485,17 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
         </div>
       )}
 
-      {/* ENCABEZADO */}
+      {/* ENCABEZADO SIN BOTÓN CREAR DOCENTE (2.b FIX) */}
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "16px", marginBottom: "20px" }}>
         <div>
           <h1 style={{ color: "#38bdf8", margin: 0, fontSize: "24px" }}>🏛️ EduMisión Córdoba · Control Central</h1>
           <p style={{ color: "#94a3b8", margin: "4px 0 0 0", fontSize: "13px" }}>
-            Panel Unificado 360°: Gestión de Matrícula, Cursos y Telemetría en Tiempo Real
+            Panel Unificado 360°: Gestión de Matrícula, Cursos, Telemetría y Valoraciones Docentes
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={handleExportData} style={{ backgroundColor: "#8b5cf6", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" }}>
-            📊 Exportar CSV
+            📊 Exportar Reporte Consolidado (.XLS)
           </button>
           <button onClick={() => { sessionStorage.removeItem("cc_pin"); setIsAuthenticated(false); }} style={{ backgroundColor: "transparent", color: "#64748b", border: "1px solid #334155", padding: "10px 14px", borderRadius: "8px", cursor: "pointer", fontSize: "12px" }}>
             🔒 Salir
@@ -506,9 +503,7 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
         </div>
       </header>
 
-      {/* ========================================================================= */}
       {/* SECTOR 1: ALUMNOS A DESIGNAR */}
-      {/* ========================================================================= */}
       <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
           <h2 style={{ color: "#fb923c", margin: 0, fontSize: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -546,7 +541,7 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                       <strong style={{ color: "#f8fafc", fontSize: "14px" }}>{a.nickname || "Alumno"}</strong>
                       <div style={{ color: "#94a3b8", fontSize: "11px" }}>{a.escuela || "Sin escuela"} · {a.curso || "1° Año"}</div>
                       <div style={{ color: "#38bdf8", fontSize: "11px", marginTop: "2px" }}>
-                        ⚡ <strong>{a.xpTotal || 0} XP</strong> • Misiones: <span style={{ color: "#4ade80" }}>{misionesCount}/4</span>
+                        ⚡ <strong>{a.xpTotal || a.xp || 0} XP</strong> • Misiones: <span style={{ color: "#4ade80" }}>{misionesCount}/4</span>
                       </div>
                     </div>
                   </div>
@@ -565,16 +560,13 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
         </div>
       </section>
 
-      {/* ========================================================================= */}
       {/* SECTOR 2: PROFES Y SUS ALUMNOS ASIGNADOS */}
-      {/* ========================================================================= */}
       <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
           <h2 style={{ color: "#38bdf8", margin: 0, fontSize: "18px" }}>
             2️⃣ PROFES Y SUS ALUMNOS ASIGNADOS ({docentes.length} Tarjetas)
           </h2>
 
-          {/* BOTÓN ASIGNAR TILDADOS */}
           <button
             onClick={handleAssignSelectedStudents}
             disabled={!targetDocenteId || selectedStudentIds.length === 0}
@@ -609,11 +601,9 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
               const isSelected = targetDocenteId === docItem.id;
               const isDuplicated = isDocenteDuplicado(docItem);
               
-              // Alumnos asignados a este docente
               const assignedStudents = alumnos.filter((a) => a.docenteId === docItem.id);
               const assignedCount = assignedStudents.length;
 
-              // Indicadores por tarjeta
               const atLeastOneCount = assignedStudents.filter(
                 (a) => Array.isArray(a.misionesCompletadas) && a.misionesCompletadas.length > 0
               ).length;
@@ -638,7 +628,6 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                     justifyContent: "space-between"
                   }}
                 >
-                  {/* ETIQUETA AMARILLA DE DUPLICADO */}
                   {isDuplicated && (
                     <span style={{ position: "absolute", top: "10px", right: "10px", backgroundColor: "#f59e0b", color: "#000", fontSize: "10px", fontWeight: "bold", padding: "2px 6px", borderRadius: "4px" }}>
                       ⚠️ posible duplicado
@@ -646,7 +635,6 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                   )}
 
                   <div>
-                    {/* DATOS DOCENTE */}
                     <div style={{ marginBottom: "8px" }}>
                       <strong style={{ color: isSelected ? "#4ade80" : "#38bdf8", fontSize: "15px" }}>
                         👩‍🏫 {docItem.nombre}
@@ -656,7 +644,6 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                       </div>
                     </div>
 
-                    {/* LÍNEA DE CÓDIGO Y ACCIÓN ELIMINAR PROFE */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", backgroundColor: "#0f172a", padding: "6px 10px", borderRadius: "6px" }}>
                       <span style={{ fontSize: "11px", color: "#f59e0b", fontFamily: "monospace" }}>
                         Código: <strong>{docItem.codigoAcceso || "------"}</strong>
@@ -673,7 +660,6 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                       </button>
                     </div>
 
-                    {/* CONTADORES SIMPLE KPI PER DOCENTE */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "12px" }}>
                       <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", padding: "6px", borderRadius: "6px", textAlign: "center" }}>
                         <div style={{ fontSize: "10px", color: "#94a3b8" }}>≥1 Misión Completa</div>
@@ -685,7 +671,6 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                       </div>
                     </div>
 
-                    {/* SUB-LISTA DE ALUMNOS ASIGNADOS */}
                     <div style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "8px", padding: "10px" }}>
                       <div style={{ fontSize: "11px", fontWeight: "bold", color: "#cbd5e1", marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
                         <span>Alumnos Asignados:</span>
@@ -720,13 +705,12 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                                 <div>
                                   <strong style={{ color: "#f8fafc" }}>{al.nickname || "Alumno"}</strong>
                                   <div style={{ fontSize: "10px", color: "#94a3b8" }}>
-                                    ⚡ <strong style={{ color: "#f59e0b" }}>{al.xpTotal || 0} XP</strong> · Misiones: <span style={{ color: "#38bdf8" }}>{misionesStr}</span>
+                                    ⚡ <strong style={{ color: "#f59e0b" }}>{al.xpTotal || al.xp || 0} XP</strong> · Misiones: <span style={{ color: "#38bdf8" }}>{misionesStr}</span>
                                     {al.badgeEarned && <span style={{ color: "#c084fc", marginLeft: "4px" }}>🏆 Insignia</span>}
                                   </div>
                                 </div>
 
                                 <div style={{ display: "flex", gap: "4px" }}>
-                                  {/* DESVINCULAR */}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -738,7 +722,6 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                                     ↩ Desvincular
                                   </button>
 
-                                  {/* ELIMINAR */}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -764,38 +747,147 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
         </div>
       </section>
 
-      {/* ========================================================================= */}
-      {/* SECTOR 3: TELEMETRÍA */}
-      {/* ========================================================================= */}
-      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px" }}>
+      {/* 2.c FIX: SECTOR 3: VALORACIONES DE DOCENTES */}
+      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-          <h2 style={{ color: "#c084fc", margin: 0, fontSize: "18px", display: "flex", alignItems: "center", gap: "10px" }}>
-            3️⃣ TELEMETRÍA xAPI EN TIEMPO REAL ({liveLogs.length} Eventos)
+          <h2 style={{ color: "#c084fc", margin: 0, fontSize: "18px" }}>
+            3️⃣ VALORACIONES Y EVALUACIONES DE DOCENTES ({valoraciones.length})
           </h2>
-          <span style={{ fontSize: "11px", backgroundColor: dbStatus === "CONECTADO" ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)", color: dbStatus === "CONECTADO" ? "#4ade80" : "#ef4444", border: `1px solid ${dbStatus === "CONECTADO" ? "#10b981" : "#ef4444"}`, padding: "4px 10px", borderRadius: "8px", fontWeight: "bold" }}>
-            ● {dbStatus}
+          <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+            Respuestas recibidas desde el cuestionario de valoración pedagógica
           </span>
         </div>
-        <p style={{ color: "#94a3b8", fontSize: "12px", marginBottom: "15px" }}>
-          Últimos 100 eventos xAPI registrados desde las cabinas de los alumnos:
-        </p>
 
-        <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "8px", padding: "15px", maxHeight: "300px", overflowY: "auto", fontFamily: "monospace", fontSize: "12px" }}>
-          {liveLogs.length === 0 ? (
-            <div style={{ fontStyle: "italic", color: "#64748b" }}>
-              Esperando eventos de telemetría en tiempo real...
-            </div>
-          ) : (
-            liveLogs.map((log) => (
-              <div key={log.id} style={{ marginBottom: "8px", borderBottom: "1px dashed #1e293b", paddingBottom: "6px", display: "flex", justifyContent: "space-between" }}>
-                <div>
-                  <span style={{ color: "#38bdf8", fontWeight: "bold" }}>[{log.alumno || log.alumnoId || "Alumno"}]</span> ({log.escuela || "Córdoba"}): <span style={{ color: "#f8fafc" }}>{log.evento}</span>
-                </div>
-                <span style={{ color: "#f59e0b" }}>{log.xp || 0} XP</span>
-              </div>
-            ))
-          )}
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #1e293b", color: "#64748b", textAlign: "left" }}>
+                <th style={{ padding: "10px" }}>Docente / Escuela</th>
+                <th style={{ padding: "10px" }}>Valor Misiones</th>
+                <th style={{ padding: "10px" }}>Dificultad</th>
+                <th style={{ padding: "10px" }}>Mensajes Vivo</th>
+                <th style={{ padding: "10px" }}>Síntesis CiDi</th>
+                <th style={{ padding: "10px" }}>Sugerencias y Comentarios</th>
+              </tr>
+            </thead>
+            <tbody>
+              {valoraciones.length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ fontStyle: "italic", color: "#64748b", padding: "20px", textAlign: "center" }}>
+                    Aún no hay valoraciones pedagógicas enviadas por docentes.
+                  </td>
+                </tr>
+              ) : (
+                valoraciones.map((v) => {
+                  const r = v.respuestas || {};
+                  return (
+                    <tr key={v.id} style={{ borderBottom: "1px solid #020617" }}>
+                      <td style={{ padding: "10px" }}>
+                        <strong style={{ color: "#38bdf8" }}>👩‍🏫 {v.nombreDocente || "Docente"}</strong>
+                        <div style={{ fontSize: "11px", color: "#94a3b8" }}>{v.escuela || "Escuela"} ({v.curso || "1° Año"})</div>
+                      </td>
+                      <td style={{ padding: "10px", color: "#4ade80", fontWeight: "bold" }}>{r.valorPedagogico || "-"}</td>
+                      <td style={{ padding: "10px", color: "#cbd5e1" }}>{r.nivelDificultad || "-"}</td>
+                      <td style={{ padding: "10px", color: "#c084fc" }}>{r.contactoGrupal || "-"}</td>
+                      <td style={{ padding: "10px", color: "#fb923c" }}>{r.sintesisFamilias || "-"}</td>
+                      <td style={{ padding: "10px", color: "#f8fafc", fontStyle: "italic", maxWidth: "250px" }}>
+                        "{r.sugerenciasMejora || "Sin comentarios adicionales"}"
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
+      </section>
+
+      {/* 2.a FIX: SECTOR 4: TELEMETRÍA Y RESUMEN EJECUTIVO */}
+      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+          <h2 style={{ color: "#38bdf8", margin: 0, fontSize: "18px", display: "flex", alignItems: "center", gap: "10px" }}>
+            4️⃣ TELEMETRÍA xAPI EN TIEMPO REAL ({liveLogs.length} Eventos)
+          </h2>
+
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button
+              onClick={() => setTelemetriaTab("RESUMEN")}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: telemetriaTab === "RESUMEN" ? "1px solid #38bdf8" : "1px solid #334155",
+                backgroundColor: telemetriaTab === "RESUMEN" ? "rgba(56, 189, 248, 0.2)" : "#020617",
+                color: telemetriaTab === "RESUMEN" ? "#38bdf8" : "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              📊 Resumen Ejecutivo
+            </button>
+            <button
+              onClick={() => setTelemetriaTab("DETALLADO")}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: telemetriaTab === "DETALLADO" ? "1px solid #38bdf8" : "1px solid #334155",
+                backgroundColor: telemetriaTab === "DETALLADO" ? "rgba(56, 189, 248, 0.2)" : "#020617",
+                color: telemetriaTab === "DETALLADO" ? "#38bdf8" : "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              📜 Registro Detallado (100)
+            </button>
+          </div>
+        </div>
+
+        {/* 2.a FIX: RESUMEN EJECUTIVO SINTÉTICO DE BITÁCORA */}
+        {telemetriaTab === "RESUMEN" ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+            <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "#94a3b8" }}>Eventos xAPI Totales</div>
+              <div style={{ fontSize: "22px", fontWeight: "bold", color: "#ffffff", margin: "4px 0" }}>{telemetriaResumen.totalEventos}</div>
+              <div style={{ fontSize: "10px", color: "#38bdf8" }}>Telemetría en vivo</div>
+            </div>
+
+            <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "#94a3b8" }}>Acciones de Éxito / Aciertos</div>
+              <div style={{ fontSize: "22px", fontWeight: "bold", color: "#4ade80", margin: "4px 0" }}>{telemetriaResumen.completadas}</div>
+              <div style={{ fontSize: "10px", color: "#4ade80" }}>Misiones e hitos</div>
+            </div>
+
+            <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "#94a3b8" }}>Desvíos Registrados</div>
+              <div style={{ fontSize: "22px", fontWeight: "bold", color: "#fb923c", margin: "4px 0" }}>{telemetriaResumen.desvios}</div>
+              <div style={{ fontSize: "10px", color: "#fb923c" }}>Errores diagnósticos</div>
+            </div>
+
+            <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "#94a3b8" }}>Consultas de Pista / Andamiaje</div>
+              <div style={{ fontSize: "22px", fontWeight: "bold", color: "#c084fc", margin: "4px 0" }}>{telemetriaResumen.pistas}</div>
+              <div style={{ fontSize: "10px", color: "#c084fc" }}>Consultas a EduBot</div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ backgroundColor: "#020617", border: "1px solid #1e293b", borderRadius: "8px", padding: "15px", maxHeight: "300px", overflowY: "auto", fontFamily: "monospace", fontSize: "12px" }}>
+            {liveLogs.length === 0 ? (
+              <div style={{ fontStyle: "italic", color: "#64748b" }}>
+                Esperando eventos de telemetría en tiempo real...
+              </div>
+            ) : (
+              liveLogs.map((log) => (
+                <div key={log.id} style={{ marginBottom: "8px", borderBottom: "1px dashed #1e293b", paddingBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                  <div>
+                    <span style={{ color: "#38bdf8", fontWeight: "bold" }}>[{log.alumno || log.alumnoId || "Alumno"}]</span> ({log.escuela || "Córdoba"}): <span style={{ color: "#f8fafc" }}>{log.evento}</span>
+                  </div>
+                  <span style={{ color: "#f59e0b" }}>{log.xp || 0} XP</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </section>
     </div>
   );
