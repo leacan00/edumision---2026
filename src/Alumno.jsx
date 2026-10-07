@@ -579,6 +579,33 @@ function HyperspaceJump() {
   return (
     <div style={hyperspaceStyles.overlay}>
       <style>{`
+        @keyframes barrelWobble {
+          0% { transform: rotate(0deg); }
+          25% { transform: rotate(-5deg) translateX(-3px); }
+          50% { transform: rotate(5deg) translateX(3px); }
+          75% { transform: rotate(-3deg); }
+          100% { transform: rotate(0deg); }
+        }
+        @keyframes barrelFall {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          30% { transform: translateY(12px) rotate(15deg); }
+          70% { transform: translateY(28px) rotate(-22deg); opacity: 0.7; }
+          100% { transform: translateY(42px) rotate(40deg); opacity: 0.25; }
+        }
+        @keyframes screenShake {
+          0% { transform: translate(0, 0); }
+          20% { transform: translate(-8px, 4px); }
+          40% { transform: translate(8px, -4px); }
+          60% { transform: translate(-5px, 2px); }
+          80% { transform: translate(5px, -2px); }
+          100% { transform: translate(0, 0); }
+        }
+        @keyframes drumDock {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.08) translateY(-8px); filter: brightness(1.4); }
+          100% { transform: scale(1.03); }
+        }
+
         @keyframes floatXPAnim {
           0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
           20% { transform: translate(-50%, -20px) scale(1.3); opacity: 1; filter: drop-shadow(0 0 12px #eab308); }
@@ -806,7 +833,11 @@ export default function App() {
 
   // Navegación de Misiones
   const [misionActual, setMisionActual] = useState("m1"); // 'm1', 'm2', 'm3', 'm4'
-  const [faseMision, setFaseMision] = useState("inicio"); // 'inicio', 'simulacro', 'transicion', 'desafio', 'exito'
+  const [faseMision, setFaseMision] = useState("inicio");
+  // 🛢️ ESTADO DE FÍSICA DE TAMBORES EN MISION 2
+  const [m2StackState, setM2StackState] = useState("idle"); // "idle", "wobble", "fall", "docked"
+  const [m2SelectedBarrel, setM2SelectedBarrel] = useState(null);
+ // 'inicio', 'simulacro', 'transicion', 'desafio', 'exito'
   const [pasoDemo, setPasoDemo] = useState(1);
   const [m4StepIndex, setM4StepIndex] = useState(1); // 1, 2, 3
 
@@ -1109,6 +1140,8 @@ export default function App() {
       setFeedback(null);
       setCopilotMood("idle");
       setM2SimulacroNum(null);
+    setM2StackState("idle");
+    setM2SelectedBarrel(null);
       setM3SimulacroAns(null);
       setTransitioning(false);
       addBitacora(`🚀 Ingreso a la ${mId.toUpperCase()}`);
@@ -1127,6 +1160,8 @@ export default function App() {
     setOpcionSeleccionada(null);
     setFeedback(null);
     setM2SimulacroNum(null);
+    setM2StackState("idle");
+    setM2SelectedBarrel(null);
     setM3SimulacroAns(null);
     setM4StepIndex(1);
 
