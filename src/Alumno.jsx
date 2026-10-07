@@ -579,6 +579,17 @@ function HyperspaceJump() {
   return (
     <div style={hyperspaceStyles.overlay}>
       <style>{`
+        @keyframes floatXPAnim {
+          0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+          20% { transform: translate(-50%, -20px) scale(1.3); opacity: 1; filter: drop-shadow(0 0 12px #eab308); }
+          80% { transform: translate(-50%, -50px) scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px #eab308); }
+          100% { transform: translate(-50%, -80px) scale(0.9); opacity: 0; }
+        }
+        @keyframes antennaPulse {
+          0% { box-shadow: 0 0 4px #38bdf8; transform: scale(1); }
+          50% { box-shadow: 0 0 16px #38bdf8, 0 0 24px #38bdf8; transform: scale(1.25); }
+          100% { box-shadow: 0 0 4px #38bdf8; transform: scale(1); }
+        }
         button { transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease !important; }
         button:active { transform: scale(0.95) !important; filter: brightness(1.2); }
         button:hover { filter: brightness(1.1); box-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
@@ -1232,6 +1243,8 @@ export default function App() {
       if (misionActual !== "m4") {
         setFaseMision("exito");
         otorgarXP(misionActual);
+        setFloatingXP({ text: "+100 XP", key: Date.now() });
+        setTimeout(() => setFloatingXP(null), 2200);
       } else {
         // En M4 avanzamos por los 3 pasos secuenciales
         if (m4StepIndex < 3) {
@@ -1853,10 +1866,8 @@ export default function App() {
                     {/* M1, M2 Y M3 */}
                     {misionActual !== "m4" && (
                       <>
-                        {/* 🎮 CONTROLES TÁCTILES POR MISIÓN (FASE 3) */}
+                        {/* 🎮 CONTROLES TÁCTILES POR MISIÓN (M1 Y M4) */}
                         {misionActual === "m1" && <M1WaterTankHUD equation={dataM1.equation} />}
-                        {misionActual === "m2" && <M2FrequencyDialHUD equation={dataM2.equation} />}
-                        {misionActual === "m3" && <M3CargoCompressorHUD equation={dataM3.equation} />}
 
                         <div style={styles.consignaBox}>
                           <span style={styles.labelConsigna}>🚰 TU DESAFÍO EN PANTALLA:</span>
@@ -1868,33 +1879,115 @@ export default function App() {
                         </div>
 
                         <div style={styles.opcionesGrid6}>
-                          {(misionActual === "m1" ? dataM1.options : misionActual === "m2" ? dataM2.options : dataM3.options).map((opt) => {
+                          {misionActual === "m1" && dataM1.options.map((opt) => {
                             const esSeleccionado = opcionSeleccionada === opt.value;
-                            let borderStyle = "1px solid #334155";
-                            let bgStyle = "#1e293b";
-
+                            let borderStyle = "1px solid #0284c7";
+                            let bgStyle = "#0f172a";
                             if (esSeleccionado) {
                               borderStyle = opt.correct ? "2px solid #10b981" : "2px solid #ef4444";
                               bgStyle = opt.correct ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)";
                             }
-
                             return (
                               <button
                                 key={opt.id}
                                 onClick={() => handleSeleccionarOpcion(opt)}
                                 disabled={opcionSeleccionada !== null}
                                 style={{
-                                  padding: "14px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  padding: "12px 8px",
                                   borderRadius: "10px",
                                   border: borderStyle,
                                   backgroundColor: bgStyle,
                                   color: "#ffffff",
-                                  fontWeight: "bold",
-                                  fontSize: "15px",
+                                  cursor: opcionSeleccionada !== null ? "not-allowed" : "pointer",
+                                  boxShadow: esSeleccionado ? (opt.correct ? "0 0 16px rgba(16, 185, 129, 0.5)" : "0 0 16px rgba(239, 68, 68, 0.5)") : "none"
+                                }}
+                              >
+                                <span style={{ fontSize: "9px", color: "#38bdf8", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" }}>
+                                  VÁLVULA {opt.id}
+                                </span>
+                                <span style={{ fontSize: "17px", fontWeight: "bold", color: "#ffffff" }}>
+                                  💧 {opt.value}
+                                </span>
+                              </button>
+                            );
+                          })}
+
+                          {misionActual === "m2" && dataM2.options.map((opt) => {
+                            const esSeleccionado = opcionSeleccionada === opt.value;
+                            let borderStyle = "1px solid #f97316";
+                            let bgStyle = "#160d06";
+                            if (esSeleccionado) {
+                              borderStyle = opt.correct ? "2px solid #10b981" : "2px solid #ef4444";
+                              bgStyle = opt.correct ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)";
+                            }
+                            return (
+                              <button
+                                key={opt.id}
+                                onClick={() => handleSeleccionarOpcion(opt)}
+                                disabled={opcionSeleccionada !== null}
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  padding: "12px 10px",
+                                  borderRadius: "10px",
+                                  border: borderStyle,
+                                  backgroundColor: bgStyle,
+                                  color: "#ffffff",
                                   cursor: opcionSeleccionada !== null ? "not-allowed" : "pointer"
                                 }}
                               >
-                                💧 {opt.value}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "3px" }}>
+                                  <span style={{ fontSize: "9px", fontWeight: "bold", color: "#fb923c", textTransform: "uppercase" }}>
+                                    CELDA {opt.id}
+                                  </span>
+                                  <span style={{ fontSize: "8px", color: "#fdba74" }}>⚡ REACTOR</span>
+                                </div>
+                                <div style={{ fontSize: "17px", fontWeight: "bold", color: "#ffffff", textAlign: "center", margin: "1px 0" }}>
+                                  🧪 {opt.value}
+                                </div>
+                              </button>
+                            );
+                          })}
+
+                          {misionActual === "m3" && dataM3.options.map((opt) => {
+                            const esSeleccionado = opcionSeleccionada === opt.value;
+                            let borderStyle = "1px solid #a855f7";
+                            let bgStyle = "#140921";
+                            if (esSeleccionado) {
+                              borderStyle = opt.correct ? "2px solid #10b981" : "2px solid #ef4444";
+                              bgStyle = opt.correct ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)";
+                            }
+                            return (
+                              <button
+                                key={opt.id}
+                                onClick={() => handleSeleccionarOpcion(opt)}
+                                disabled={opcionSeleccionada !== null}
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  padding: "12px 10px",
+                                  borderRadius: "10px",
+                                  border: borderStyle,
+                                  backgroundColor: bgStyle,
+                                  color: "#ffffff",
+                                  cursor: opcionSeleccionada !== null ? "not-allowed" : "pointer",
+                                  boxShadow: "inset 0 0 8px rgba(168, 85, 247, 0.15)"
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "3px" }}>
+                                  <span style={{ fontSize: "9px", fontWeight: "bold", color: "#c084fc", textTransform: "uppercase" }}>
+                                    • MÓDULO {opt.id} •
+                                  </span>
+                                  <span style={{ fontSize: "8px", backgroundColor: "rgba(168, 85, 247, 0.2)", color: "#e9d5ff", padding: "1px 4px", borderRadius: "4px" }}>
+                                    🗜️ SIMPL
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: "17px", fontWeight: "bold", color: "#ffffff", textAlign: "center", margin: "1px 0" }}>
+                                  📦 {opt.value}
+                                </div>
                               </button>
                             );
                           })}
@@ -1929,8 +2022,8 @@ export default function App() {
                         <div style={styles.opcionesGrid6}>
                           {(m4StepIndex === 1 ? dataM4.part1.options : m4StepIndex === 2 ? dataM4.part2.options : dataM4.part3.options).map((opt) => {
                             const esSeleccionado = opcionSeleccionada === opt.value;
-                            let borderStyle = "1px solid #334155";
-                            let bgStyle = "#1e293b";
+                            let borderStyle = "2px solid #38bdf8";
+                            let bgStyle = "#03172c";
 
                             if (esSeleccionado) {
                               borderStyle = opt.correct ? "2px solid #10b981" : "2px solid #ef4444";
@@ -1943,17 +2036,34 @@ export default function App() {
                                 onClick={() => handleSeleccionarOpcion(opt)}
                                 disabled={opcionSeleccionada !== null}
                                 style={{
-                                  padding: "14px",
-                                  borderRadius: "10px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  padding: "12px 10px",
+                                  borderRadius: "12px",
                                   border: borderStyle,
                                   backgroundColor: bgStyle,
                                   color: "#ffffff",
-                                  fontWeight: "bold",
-                                  fontSize: "13px",
-                                  cursor: opcionSeleccionada !== null ? "not-allowed" : "pointer"
+                                  cursor: opcionSeleccionada !== null ? "not-allowed" : "pointer",
+                                  boxShadow: esSeleccionado
+                                    ? (opt.correct ? "0 0 20px rgba(16, 185, 129, 0.6)" : "0 0 20px rgba(239, 68, 68, 0.6)")
+                                    : "0 0 10px rgba(56, 189, 248, 0.2), inset 0 0 10px rgba(56, 189, 248, 0.1)",
+                                  position: "relative"
                                 }}
                               >
-                                {opt.value}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "4px" }}>
+                                  <span style={{ fontSize: "9px", fontWeight: "bold", color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                                    🕹️ COMANDO {opt.id}
+                                  </span>
+                                  <span style={{ fontSize: "8px", backgroundColor: "rgba(56, 189, 248, 0.2)", color: "#7dd3fc", padding: "1px 5px", borderRadius: "4px", fontWeight: "bold" }}>
+                                    🟢 READY
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: "17px", fontWeight: "bold", color: "#ffffff", textAlign: "center", margin: "1px 0" }}>
+                                  🚀 {opt.value}
+                                </div>
+                                <div style={{ fontSize: "8px", color: "#94a3b8", textAlign: "center", marginTop: "1px", fontWeight: "600" }}>
+                                  PASO {m4StepIndex} · FUSIÓN ACTIVA
+                                </div>
                               </button>
                             );
                           })}
@@ -2003,12 +2113,56 @@ export default function App() {
                     {/* RECOMPENSA DE ÉXITO */}
                     {faseMision === "exito" && (
                       <div style={styles.recompensaCard}>
-                        <h3 style={{ margin: "0 0 6px 0", color: "#4ade80", fontSize: "18px" }}>
-                          🏆 ¡Misión Lograda!
-                        </h3>
-                        <p style={{ margin: "0 0 12px 0", fontSize: "13px", color: "#cbd5e1" }}>
-                          ¡Excelente trabajo, {perfilAlumno.nickname}!
-                        </p>
+                        {/* 🌟 BANNER DE TRIUNFO DE MISIÓN CUMPLIDA */}
+                        <div style={{
+                          backgroundColor: "rgba(234, 179, 8, 0.15)",
+                          border: "2px solid #eab308",
+                          borderRadius: "12px",
+                          padding: "16px",
+                          textAlign: "center",
+                          boxShadow: "0 0 20px rgba(234, 179, 8, 0.3)",
+                          marginBottom: "16px"
+                        }}>
+                          <div style={{ fontSize: "28px" }}>🚀 🌟 🏆</div>
+                          <h2 style={{ color: "#fef08a", margin: "4px 0", fontSize: "20px", fontWeight: "bold" }}>
+                            ¡TRIUNFO DE MISIÓN CUMPLIDA!
+                          </h2>
+                          <p style={{ color: "#e2e8f0", fontSize: "13px", margin: "4px 0" }}>
+                            ¡Excelente deducción matemática, {perfilAlumno.nickname}!
+                          </p>
+                          <div style={{
+                            display: "inline-block",
+                            marginTop: "8px",
+                            backgroundColor: "#eab308",
+                            color: "#0f172a",
+                            padding: "4px 14px",
+                            borderRadius: "20px",
+                            fontWeight: "bold",
+                            fontSize: "12px"
+                          }}>
+                            {misionActual === "m4" ? "+250 XP Acreditados" : "+100 XP Acreditados"}
+                          </div>
+                        </div>
+
+                        {/* 🏆 INSIGNIA DIFICULTAD SUPERADA (SI OCURRIÓ UN ERROR PREVIO) */}
+                        {(statsPorMision[misionActual]?.errores || 0) > 0 && (
+                          <div style={{
+                            backgroundColor: "rgba(16, 185, 129, 0.15)",
+                            border: "1px solid #10b981",
+                            borderRadius: "10px",
+                            padding: "12px",
+                            marginBottom: "14px",
+                            textAlign: "center",
+                            boxShadow: "0 0 12px rgba(16, 185, 129, 0.2)"
+                          }}>
+                            <div style={{ fontSize: "15px", fontWeight: "bold", color: "#4ade80" }}>
+                              🏆 INSIGNIA: Dificultad superada
+                            </div>
+                            <p style={{ fontSize: "12px", color: "#cbd5e1", margin: "4px 0 0 0", lineHeight: "1.4" }}>
+                              Superaste los desvíos iniciales razonando en tu borrador. ¡Esa es la actitud de un/a verdadero/a comandante espacial!
+                            </p>
+                          </div>
+                        )}
 
                         {misionActual === "m4" && (
                           <div style={{
