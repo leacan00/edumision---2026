@@ -884,6 +884,8 @@ export default function App() {
 
   // Estados de Interacción
   const [opcionSeleccionada, setOpcionSeleccionada] = useState(null);
+  const [m2FallingId, setM2FallingId] = useState(null);
+  const [m2WobbleId, setM2WobbleId] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [copilotMood, setCopilotMood] = useState("idle");
   const [copilotMsg, setCopilotMsg] = useState("¡Bienvenido/a a la travesía! Hacé las cuentas en papel antes de responder.");
@@ -1137,6 +1139,8 @@ export default function App() {
       setM4StepIndex(1);
       setMisionTimerRef(0);
       setOpcionSeleccionada(null);
+    setM2FallingId(null);
+    setM2WobbleId(null);
       setFeedback(null);
       setCopilotMood("idle");
       setM2SimulacroNum(null);
@@ -1158,6 +1162,8 @@ export default function App() {
   // Re-generación de Datos
   const handleGenerarNuevas = () => {
     setOpcionSeleccionada(null);
+    setM2FallingId(null);
+    setM2WobbleId(null);
     setFeedback(null);
     setM2SimulacroNum(null);
     setM2StackState("idle");
@@ -1222,6 +1228,8 @@ export default function App() {
     if (m4StepIndex < 3) {
       setM4StepIndex((prev) => prev + 1);
       setOpcionSeleccionada(null);
+    setM2FallingId(null);
+    setM2WobbleId(null);
       setFeedback(null);
       setCopilotMood("idle");
       setCopilotMsg(`Paso ${m4StepIndex + 1} de M4 activo. Resolvé con atención.`);
@@ -1299,6 +1307,14 @@ export default function App() {
       setCopilotMsg("⚠️ Desvío detectado. Revisá tu cálculo con lápiz y papel.");
       setErrorWarning("Sin calculadoras. Usá hoja y lápiz para verificar los denominadores.");
       
+      if (misionActual === "m2" && !opt.correct) {
+        setM2WobbleId(opt.id);
+        setTimeout(() => setM2FallingId(opt.id), 200);
+        setTimeout(() => {
+          setM2FallingId(null);
+          setM2WobbleId(null);
+        }, 1800);
+      }
       if (!misionesConError.includes(misionActual)) {
         setMisionesConError((prev) => [...prev, misionActual]);
       }
@@ -1319,6 +1335,8 @@ export default function App() {
           });
         }
         setOpcionSeleccionada(null);
+    setM2FallingId(null);
+    setM2WobbleId(null);
       }, 2200);
     }
   };
@@ -1950,43 +1968,128 @@ export default function App() {
                             );
                           })}
 
-                          {misionActual === "m2" && dataM2.options.map((opt) => {
-                            const esSeleccionado = opcionSeleccionada === opt.value;
-                            let borderStyle = "1px solid #f97316";
-                            let bgStyle = "#160d06";
-                            if (esSeleccionado) {
-                              borderStyle = opt.correct ? "2px solid #10b981" : "2px solid #ef4444";
-                              bgStyle = opt.correct ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)";
-                            }
-                            return (
-                              <button
-                                key={opt.id}
-                                onClick={() => handleSeleccionarOpcion(opt)}
-                                disabled={opcionSeleccionada !== null}
-                                style={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  padding: "12px 10px",
-                                  borderRadius: "10px",
-                                  border: borderStyle,
-                                  backgroundColor: bgStyle,
-                                  color: "#ffffff",
-                                  cursor: opcionSeleccionada !== null ? "not-allowed" : "pointer"
-                                }}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "3px" }}>
-                                  <span style={{ fontSize: "9px", fontWeight: "bold", color: "#fb923c", textTransform: "uppercase" }}>
-                                    CELDA {opt.id}
-                                  </span>
-                                  <span style={{ fontSize: "8px", color: "#fdba74" }}>⚡ REACTOR</span>
-                                </div>
-                                <div style={{ fontSize: "17px", fontWeight: "bold", color: "#ffffff", textAlign: "center", margin: "1px 0" }}>
-                                  🧪 {opt.value}
-                                </div>
-                              </button>
-                            );
-                          })}
+                          {misionActual === "m2" && (
+                            <div style={{
+                              gridColumn: "1 / -1",
+                              backgroundColor: "#0a0704",
+                              border: "2px solid #ea580c",
+                              borderRadius: "14px",
+                              padding: "16px",
+                              marginBottom: "12px",
+                              boxShadow: "0 8px 24px rgba(234, 88, 12, 0.25)",
+                              position: "relative",
+                              overflow: "hidden"
+                            }}>
+                              <div style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: "12px",
+                                borderBottom: "1px solid #431407",
+                                paddingBottom: "8px"
+                              }}>
+                                <span style={{ fontSize: "11px", fontWeight: "bold", color: "#fb923c", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                                  🛢️ ESTANTERÍA INDUSTRIAL DE TAMBORES
+                                </span>
+                                <span style={{ fontSize: "10px", backgroundColor: "rgba(251, 146, 60, 0.2)", border: "1px solid #f97316", color: "#fdba74", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
+                                  {m2FallingId ? "⚠️ COLAPSO DE TAMBORES" : "ESTANTERÍA ESTABLE"}
+                                </span>
+                              </div>
 
+                              <div style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr 1fr 1fr",
+                                gap: "12px"
+                              }}>
+                                {dataM2.options.map((opt) => {
+                                  const esSeleccionado = opcionSeleccionada === opt.value;
+                                  const isWobbling = m2WobbleId === opt.id;
+                                  const isFalling = m2FallingId === opt.id;
+
+                                  let borderStyle = "2px solid #7c2d12";
+                                  let bgStyle = "linear-gradient(180deg, #2a1205 0%, #170902 100%)";
+                                  let transformStyle = "scale(1)";
+                                  let animStyle = "none";
+
+                                  if (isWobbling) {
+                                    animStyle = "barrelWobble 0.25s infinite ease-in-out";
+                                    borderStyle = "2px solid #ef4444";
+                                  }
+                                  if (isFalling) {
+                                    animStyle = "barrelFall 1.2s forwards ease-in";
+                                    borderStyle = "2px solid #dc2626";
+                                  }
+
+                                  if (esSeleccionado && opt.correct) {
+                                    borderStyle = "2px solid #10b981";
+                                    bgStyle = "linear-gradient(180deg, #064e3b 0%, #022c22 100%)";
+                                    transformStyle = "translateY(-6px) scale(1.04)";
+                                  }
+
+                                  return (
+                                    <button
+                                      key={opt.id}
+                                      onClick={() => handleSeleccionarOpcion(opt)}
+                                      disabled={opcionSeleccionada !== null || m2FallingId !== null}
+                                      style={{
+                                        position: "relative",
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justify: "center",
+                                        padding: "14px 6px 10px 6px",
+                                        borderRadius: "12px",
+                                        border: borderStyle,
+                                        background: bgStyle,
+                                        color: "#ffffff",
+                                        cursor: (opcionSeleccionada !== null || m2FallingId !== null) ? "not-allowed" : "pointer",
+                                        transform: transformStyle,
+                                        animation: animStyle,
+                                        transition: "transform 0.2s ease, border-color 0.2s ease",
+                                        boxShadow: (esSeleccionado && opt.correct)
+                                          ? "0 0 20px rgba(16, 185, 129, 0.6)"
+                                          : "0 4px 12px rgba(0,0,0,0.6)"
+                                      }}
+                                    >
+                                      <div style={{
+                                        width: "32px",
+                                        height: "6px",
+                                        borderRadius: "50%",
+                                        border: "1px solid #fb923c",
+                                        backgroundColor: "#431407",
+                                        marginBottom: "4px"
+                                      }} />
+                                      <div style={{ fontSize: "26px", lineHeight: "1", marginBottom: "2px" }}>
+                                        🛢️
+                                      </div>
+                                      <div style={{ fontSize: "17px", fontWeight: "800", color: "#ffffff" }}>
+                                        {opt.value}
+                                      </div>
+                                      <div style={{ fontSize: "9px", color: "#fdba74", fontWeight: "bold", marginTop: "2px" }}>
+                                        TAMBOR {opt.id}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {m2FallingId && (
+                                <div style={{
+                                  marginTop: "10px",
+                                  padding: "8px",
+                                  backgroundColor: "rgba(239, 68, 68, 0.2)",
+                                  border: "1px solid #ef4444",
+                                  borderRadius: "8px",
+                                  color: "#fca5a5",
+                                  fontSize: "11px",
+                                  textAlign: "center",
+                                  fontWeight: "bold"
+                                }}>
+                                  💥 ¡TAMBOR CON MEZCLA INCORRECTA! La estantería se desequilibró y cayeron los tambores. Reordenando...
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {misionActual === "m3" && dataM3.options.map((opt) => {
                             const esSeleccionado = opcionSeleccionada === opt.value;
                             let borderStyle = "1px solid #a855f7";
