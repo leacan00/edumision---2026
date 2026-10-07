@@ -1365,32 +1365,38 @@ export default function App() {
     <div style={styles.container}>
       <style>{`
         @keyframes barrelWobble {
-          0% { transform: rotate(0deg); }
-          25% { transform: rotate(-5deg) translateX(-3px); }
-          50% { transform: rotate(5deg) translateX(3px); }
-          75% { transform: rotate(-3deg); }
-          100% { transform: rotate(0deg); }
+          0% { transform: rotate(0deg) scale(1); }
+          15% { transform: rotate(-12deg) translateX(-6px) scale(1.05); }
+          30% { transform: rotate(12deg) translateX(6px) scale(1.05); }
+          45% { transform: rotate(-10deg) translateX(-4px); }
+          60% { transform: rotate(10deg) translateX(4px); }
+          75% { transform: rotate(-6deg) translateX(-2px); }
+          100% { transform: rotate(0deg) scale(1); }
         }
         @keyframes barrelFall {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          30% { transform: translateY(12px) rotate(15deg); }
-          70% { transform: translateY(28px) rotate(-22deg); opacity: 0.7; }
-          100% { transform: translateY(42px) rotate(40deg); opacity: 0.25; }
+          0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; filter: drop-shadow(0 0 0 transparent); }
+          20% { transform: translateY(18px) rotate(25deg) scale(1.05); filter: drop-shadow(0 0 12px #ef4444); }
+          50% { transform: translateY(70px) rotate(110deg) scale(0.9); opacity: 0.85; }
+          80% { transform: translateY(120px) rotate(210deg) scale(0.7); opacity: 0.5; filter: drop-shadow(0 0 20px #dc2626); }
+          100% { transform: translateY(170px) rotate(320deg) scale(0.3); opacity: 0; filter: blur(4px); }
         }
         @keyframes screenShake {
           0% { transform: translate(0, 0); }
-          20% { transform: translate(-8px, 4px); }
-          40% { transform: translate(8px, -4px); }
-          60% { transform: translate(-5px, 2px); }
-          80% { transform: translate(5px, -2px); }
+          20% { transform: translate(-8px, 5px); }
+          40% { transform: translate(8px, -5px); }
+          60% { transform: translate(-5px, 3px); }
+          80% { transform: translate(5px, -3px); }
           100% { transform: translate(0, 0); }
         }
         @keyframes drumDock {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.08) translateY(-8px); filter: brightness(1.4); }
-          100% { transform: scale(1.03); }
+          0% { transform: scale(1) translateY(0); filter: brightness(1); }
+          50% { transform: scale(1.12) translateY(-12px); filter: brightness(1.5) drop-shadow(0 0 25px #10b981); }
+          100% { transform: scale(1.08) translateY(-8px); filter: brightness(1.3) drop-shadow(0 0 20px #34d399); }
         }
-
+        @keyframes redAlertFlash {
+          0% { background-color: rgba(239, 68, 68, 0.15); border-color: #ef4444; }
+          100% { background-color: rgba(239, 68, 68, 0.35); border-color: #f87171; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+        }
         @keyframes floatXPAnim {
           0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
           20% { transform: translate(-50%, -20px) scale(1.3); opacity: 1; filter: drop-shadow(0 0 12px #eab308); }
@@ -1972,28 +1978,38 @@ export default function App() {
                           {misionActual === "m2" && (
                             <div style={{
                               gridColumn: "1 / -1",
-                              backgroundColor: "#0a0704",
-                              border: "2px solid #ea580c",
+                              backgroundColor: "#030712",
+                              border: m2FallingId ? "2px solid #ef4444" : "2px solid #0284c7",
                               borderRadius: "14px",
                               padding: "16px",
                               marginBottom: "12px",
-                              boxShadow: "0 8px 24px rgba(234, 88, 12, 0.25)",
+                              boxShadow: m2FallingId ? "0 0 30px rgba(239, 68, 68, 0.4)" : "0 8px 24px rgba(2, 132, 199, 0.25)",
                               position: "relative",
-                              overflow: "hidden"
+                              overflow: "hidden",
+                              animation: m2FallingId ? "screenShake 0.4s ease-in-out" : "none",
+                              transition: "all 0.3s ease"
                             }}>
                               <div style={{
                                 display: "flex",
                                 justifyContent: "space-between",
                                 alignItems: "center",
                                 marginBottom: "12px",
-                                borderBottom: "1px solid #431407",
+                                borderBottom: "1px solid #1e293b",
                                 paddingBottom: "8px"
                               }}>
-                                <span style={{ fontSize: "11px", fontWeight: "bold", color: "#fb923c", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                                  🛢️ ESTANTERÍA INDUSTRIAL DE TAMBORES
+                                <span style={{ fontSize: "11px", fontWeight: "bold", color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                                  🛢️ ESTANTERÍA INDUSTRIAL DE COMBUSTIBLE
                                 </span>
-                                <span style={{ fontSize: "10px", backgroundColor: "rgba(251, 146, 60, 0.2)", border: "1px solid #f97316", color: "#fdba74", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
-                                  {m2FallingId ? "⚠️ COLAPSO DE TAMBORES" : "ESTANTERÍA ESTABLE"}
+                                <span style={{
+                                  fontSize: "10px",
+                                  backgroundColor: m2FallingId ? "rgba(239, 68, 68, 0.2)" : "rgba(56, 189, 248, 0.15)",
+                                  border: m2FallingId ? "1px solid #ef4444" : "1px solid #38bdf8",
+                                  color: m2FallingId ? "#fca5a5" : "#7dd3fc",
+                                  padding: "2px 8px",
+                                  borderRadius: "10px",
+                                  fontWeight: "bold"
+                                }}>
+                                  {m2FallingId ? "⚠️ COLAPSO DE TAMBORES" : "⚙️ ESTANTERÍA ESTABLE"}
                                 </span>
                               </div>
 
@@ -2007,24 +2023,26 @@ export default function App() {
                                   const isWobbling = m2WobbleId === opt.id;
                                   const isFalling = m2FallingId === opt.id;
 
-                                  let borderStyle = "2px solid #7c2d12";
-                                  let bgStyle = "linear-gradient(180deg, #2a1205 0%, #170902 100%)";
+                                  let borderStyle = "2px solid #0284c7";
+                                  let bgStyle = "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)";
                                   let transformStyle = "scale(1)";
                                   let animStyle = "none";
 
                                   if (isWobbling) {
                                     animStyle = "barrelWobble 0.25s infinite ease-in-out";
                                     borderStyle = "2px solid #ef4444";
+                                    bgStyle = "linear-gradient(180deg, #450a0a 0%, #180202 100%)";
                                   }
                                   if (isFalling) {
                                     animStyle = "barrelFall 1.2s forwards ease-in";
                                     borderStyle = "2px solid #dc2626";
+                                    bgStyle = "linear-gradient(180deg, #7f1d1d 0%, #2a0808 100%)";
                                   }
 
                                   if (esSeleccionado && opt.correct) {
                                     borderStyle = "2px solid #10b981";
                                     bgStyle = "linear-gradient(180deg, #064e3b 0%, #022c22 100%)";
-                                    transformStyle = "translateY(-6px) scale(1.04)";
+                                    animStyle = "drumDock 1.2s infinite alternate ease-in-out";
                                   }
 
                                   return (
@@ -2037,7 +2055,7 @@ export default function App() {
                                         display: "flex",
                                         flexDirection: "column",
                                         alignItems: "center",
-                                        justify: "center",
+                                        justifyContent: "center",
                                         padding: "14px 6px 10px 6px",
                                         borderRadius: "12px",
                                         border: borderStyle,
@@ -2046,18 +2064,20 @@ export default function App() {
                                         cursor: (opcionSeleccionada !== null || m2FallingId !== null) ? "not-allowed" : "pointer",
                                         transform: transformStyle,
                                         animation: animStyle,
-                                        transition: "transform 0.2s ease, border-color 0.2s ease",
+                                        transition: "transform 0.2s ease, border-color 0.2s ease, background 0.2s ease",
                                         boxShadow: (esSeleccionado && opt.correct)
-                                          ? "0 0 20px rgba(16, 185, 129, 0.6)"
-                                          : "0 4px 12px rgba(0,0,0,0.6)"
+                                          ? "0 0 25px rgba(16, 185, 129, 0.8)"
+                                          : (isWobbling || isFalling)
+                                            ? "0 0 20px rgba(239, 68, 68, 0.6)"
+                                            : "0 4px 12px rgba(0,0,0,0.6)"
                                       }}
                                     >
                                       <div style={{
                                         width: "32px",
                                         height: "6px",
                                         borderRadius: "50%",
-                                        border: "1px solid #fb923c",
-                                        backgroundColor: "#431407",
+                                        border: (isWobbling || isFalling) ? "1px solid #fca5a5" : "1px solid #38bdf8",
+                                        backgroundColor: (isWobbling || isFalling) ? "#991b1b" : "#0369a1",
                                         marginBottom: "4px"
                                       }} />
                                       <div style={{ fontSize: "26px", lineHeight: "1", marginBottom: "2px" }}>
@@ -2066,7 +2086,12 @@ export default function App() {
                                       <div style={{ fontSize: "17px", fontWeight: "800", color: "#ffffff" }}>
                                         {opt.value}
                                       </div>
-                                      <div style={{ fontSize: "9px", color: "#fdba74", fontWeight: "bold", marginTop: "2px" }}>
+                                      <div style={{
+                                        fontSize: "9px",
+                                        color: (isWobbling || isFalling) ? "#fca5a5" : "#7dd3fc",
+                                        fontWeight: "bold",
+                                        marginTop: "2px"
+                                      }}>
                                         TAMBOR {opt.id}
                                       </div>
                                     </button>
@@ -2076,21 +2101,21 @@ export default function App() {
 
                               {m2FallingId && (
                                 <div style={{
-                                  marginTop: "10px",
-                                  padding: "8px",
-                                  backgroundColor: "rgba(239, 68, 68, 0.2)",
-                                  border: "1px solid #ef4444",
+                                  marginTop: "12px",
+                                  padding: "10px",
                                   borderRadius: "8px",
                                   color: "#fca5a5",
                                   fontSize: "11px",
                                   textAlign: "center",
-                                  fontWeight: "bold"
+                                  fontWeight: "bold",
+                                  animation: "redAlertFlash 0.8s infinite alternate"
                                 }}>
-                                  💥 ¡TAMBOR CON MEZCLA INCORRECTA! La estantería se desequilibró y cayeron los tambores. Reordenando...
+                                  💥 ¡MEZCLA INCOMPATIBLE! El tambor colapsó y cayó de la estantería. Reordenando estructura...
                                 </div>
                               )}
                             </div>
                           )}
+
                           {misionActual === "m3" && dataM3.options.map((opt) => {
                             const esSeleccionado = opcionSeleccionada === opt.value;
                             let borderStyle = "1px solid #a855f7";
