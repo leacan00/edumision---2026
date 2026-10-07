@@ -2,6 +2,133 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { db } from "./firebase";
 import { collection, addDoc, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 
+
+// ==========================================
+// 🔊 WEB AUDIO API SYNTHESIZER & HAPTICS (0 KB)
+// ==========================================
+const soundEffects = {
+  ctx: null,
+  init() {
+    if (!this.ctx && typeof window !== "undefined") {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume();
+    }
+  },
+  playTap() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(850, this.ctx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.05);
+    } catch (e) {}
+  },
+  playSuccess() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const startTime = this.ctx.currentTime + idx * 0.08;
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.18, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.28);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.28);
+      });
+    } catch (e) {}
+  },
+  playWarning() {
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(160, this.ctx.currentTime + 0.18);
+      gain.gain.setValueAtTime(0.10, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.18);
+    } catch (e) {}
+  }
+};
+
+const triggerHaptic = (ms = 30) => {
+  if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+    try { window.navigator.vibrate(ms); } catch (e) {}
+  }
+};
+
+// ==========================================
+// 🪖 SISTEMA DE AVATAR Y EQUIPAMIENTO EVOLUTIVO
+// ==========================================
+const getEquipamientoEvolutivo = (completadasCount) => {
+  if (completadasCount >= 4) {
+    return {
+      avatarIcon: "👨‍🚀🚀",
+      rango: "Ingeniero/a de Fusión Estelar",
+      casco: "Equipo Lunar Completo & Visor Cuántico 🔮",
+      naveMejora: "Reactor de Fusión Estelar Activo",
+      badgeColor: "#a855f7"
+    };
+  }
+  if (completadasCount === 3) {
+    return {
+      avatarIcon: "👨‍🚀",
+      rango: "Comandante Orbital",
+      casco: "Traje Orbital de Alta Presión",
+      naveMejora: "Módulo de Acople y Soporte Vital 📦",
+      badgeColor: "#38bdf8"
+    };
+  }
+  if (completadasCount === 2) {
+    return {
+      avatarIcon: "🪖✨",
+      rango: "Piloto de Altura",
+      casco: "Casco para Atmósfera Superior",
+      naveMejora: "Turbina Re-calibrada 🧪",
+      badgeColor: "#eab308"
+    };
+  }
+  if (completadasCount === 1) {
+    return {
+      avatarIcon: "🪖",
+      rango: "Cadete Supersónico",
+      casco: "Casco para Vuelos Supersónicos",
+      naveMejora: "Válvula de Agua Estabilizada 💧",
+      badgeColor: "#10b981"
+    };
+  }
+  return {
+    avatarIcon: "🧑‍🚀",
+    rango: "Cadete de Cabina",
+    casco: "Traje de Entrenamiento Inicial",
+    naveMejora: "Propulsores Convencionales",
+    badgeColor: "#64748b"
+  };
+};
+
+
 // ==========================================
 // 🛠️ MOTOR DE GENERACIÓN MATEMÁTICA Y OPCIONES (M1 - M4)
 // ==========================================
@@ -282,6 +409,9 @@ function HyperspaceJump() {
   return (
     <div style={hyperspaceStyles.overlay}>
       <style>{`
+        button { transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease !important; }
+        button:active { transform: scale(0.95) !important; filter: brightness(1.2); }
+        button:hover { filter: brightness(1.1); box-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
         @keyframes streak { 0% { transform: translateX(-150vw); } 100% { transform: translateX(150vw); } }
         @keyframes glowFlash { 0% { background-color: rgba(3, 8, 24, 0.4); } 50% { background-color: rgba(56, 189, 248, 0.25); } 100% { background-color: rgba(3, 8, 24, 0.8); } }
       `}</style>
@@ -785,6 +915,8 @@ export default function App() {
 
   // Cambiar de Misión con Salto Hiperespacial
   const cambiarMision = (mId) => {
+    soundEffects.playTap();
+    triggerHaptic(30);
     setTransitioning(true);
     setTimeout(() => {
       setMisionActual(mId);
@@ -916,6 +1048,8 @@ export default function App() {
     });
 
     if (opt.correct) {
+      soundEffects.playSuccess();
+      triggerHaptic(40);
       setCopilotMood("happy");
       setCopilotMsg("🎉 ¡Excelente deducción! Los cálculos son correctos.");
       setErrorWarning(null);
@@ -941,6 +1075,8 @@ export default function App() {
         }
       }
     } else {
+      soundEffects.playWarning();
+      triggerHaptic(60);
       setCopilotMood("shocked");
       setCopilotMsg("⚠️ Desvío detectado. Revisá tu cálculo con lápiz y papel.");
       setErrorWarning("Sin calculadoras. Usá hoja y lápiz para verificar los denominadores.");
@@ -970,6 +1106,8 @@ export default function App() {
   };
 
   const handlePedirPista = () => {
+    soundEffects.playTap();
+    triggerHaptic(30);
     // Sumar 1 a ayudas de la misión actual en statsPorMision
     setStatsPorMision((prev) => {
       const current = prev[misionActual] || { intentosSimulacro: 0, intentosDesafio: 0, errores: 0, ayudas: 0, consultasQueMeEquivoque: 0, segundosResolucion: 0, ultimoError: null };
@@ -994,6 +1132,8 @@ export default function App() {
   };
 
   const handleConsultarQueMeEquivoque = () => {
+    soundEffects.playTap();
+    triggerHaptic(30);
     const currentStats = statsPorMision[misionActual] || {};
     const lastErr = currentStats.ultimoError;
 
@@ -1184,17 +1324,27 @@ export default function App() {
         <>
           {/* CABECERA DE PERFIL DEL ALUMNO */}
           <header style={styles.topHeader}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "26px" }}>🧭</span>
-              <div>
-                <div style={{ fontSize: "16px", fontWeight: "bold", color: "#38bdf8" }}>
-                  {perfilAlumno.nickname || "Explorador/a"}
+            {(() => {
+              const gear = getEquipamientoEvolutivo(misionesCompletadas.length);
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontSize: "34px", filter: "drop-shadow(0 0 8px rgba(56,189,248,0.5))" }}>{gear.avatarIcon}</span>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "16px", fontWeight: "bold", color: "#38bdf8" }}>
+                        {perfilAlumno.nickname || "Explorador/a"}
+                      </span>
+                      <span style={{ backgroundColor: "rgba(15, 23, 42, 0.8)", border: `1px solid ${gear.badgeColor}`, color: gear.badgeColor, fontSize: "10px", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
+                        {gear.rango}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "2px" }}>
+                      🪖 {gear.casco} · {perfilAlumno.escuela} ({perfilAlumno.curso})
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: "12px", color: "#9ca3af" }}>
-                  {tituloExplorador} · {perfilAlumno.escuela} ({perfilAlumno.curso})
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {misionesCompletadas.length === 4 && (
               <button
@@ -1219,6 +1369,24 @@ export default function App() {
 
             <div style={styles.progressBarBg}>
               <div style={{ ...styles.progressBarFill, width: `${Math.min(100, (xpTotal / 750) * 100)}%` }} />
+            </div>
+
+            {/* VISTA DE EQUIPAMIENTO EVOLUTIVO DESBLOQUEADO */}
+            <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #1e293b", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+              {(() => {
+                const gear = getEquipamientoEvolutivo(misionesCompletadas.length);
+                return (
+                  <>
+                    <div style={{ fontSize: "11px", color: "#cbd5e1", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span>🚀 NAVE Y MEJORAS ACTIVAS:</span>
+                      <span style={{ color: "#38bdf8", fontStyle: "italic" }}>{gear.naveMejora}</span>
+                    </div>
+                    <div style={{ fontSize: "11px", color: gear.badgeColor, fontWeight: "bold" }}>
+                      🪖 EQUIPO: {gear.casco}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
