@@ -82,6 +82,176 @@ const triggerHaptic = (ms = 30) => {
 // ==========================================
 // 🪖 SISTEMA DE AVATAR Y EQUIPAMIENTO EVOLUTIVO
 // ==========================================
+
+// ==========================================
+// 🎮 FASE 3: CONTROLES MECÁNICOS TÁCTILES Y HUDS POR MISIÓN
+// ==========================================
+
+// M1: TANQUE DE PRESURIZACIÓN LÍQUIDA GRADUADO (AGUA)
+const M1WaterTankHUD = ({ equation = "1/5 + 2/5 = ?" }) => {
+  // Extract numerators/denominators if available
+  const match = equation.match(/(\d+)\/(\d+)\s*\+\s*(\d+)\/(\d+)/);
+  const num1 = match ? parseInt(match[1]) : 1;
+  const num2 = match ? parseInt(match[3]) : 2;
+  const den = match ? parseInt(match[2]) : 5;
+  const totalNum = num1 + num2;
+  const pct = Math.min(100, Math.round((totalNum / den) * 100));
+
+  return (
+    <div style={{ backgroundColor: "#030712", border: "1px solid #1e293b", borderRadius: "12px", padding: "12px", marginBottom: "14px", boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          🚰 CONTROL DE PRESURIZACIÓN LÍQUIDA · M1
+        </span>
+        <span style={{ fontSize: "10px", backgroundColor: "rgba(16, 185, 129, 0.2)", border: "1px solid #10b981", color: "#4ade80", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
+          DENOMINADOR BASE {den} (IGUAL)
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 1fr", gap: "10px", alignItems: "center" }}>
+        {/* Contenedor Entrada A */}
+        <div style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+          <div style={{ fontSize: "10px", color: "#94a3b8" }}>Bidón Alfa</div>
+          <div style={{ fontSize: "15px", fontWeight: "bold", color: "#38bdf8", margin: "2px 0" }}>{num1}/{den}</div>
+          <div style={{ height: "6px", backgroundColor: "#1e293b", borderRadius: "3px", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${(num1/den)*100}%`, backgroundColor: "#38bdf8", transition: "width 0.5s ease" }} />
+          </div>
+        </div>
+
+        {/* Tanque Central Graduado */}
+        <div style={{ backgroundColor: "#090d16", border: "1px solid #0284c7", borderRadius: "10px", padding: "8px 12px", position: "relative" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#cbd5e1", marginBottom: "4px" }}>
+            <span>Nivel de Carga Combinada</span>
+            <strong style={{ color: "#38bdf8" }}>{num1}+{num2} = {totalNum}/{den}</strong>
+          </div>
+          <div style={{ height: "14px", backgroundColor: "#020617", borderRadius: "7px", border: "1px solid #1e293b", overflow: "hidden", position: "relative" }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, #0284c7, #38bdf8)", borderRadius: "6px", transition: "width 0.6s ease" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "#64748b", marginTop: "2px" }}>
+            <span>0/{den}</span>
+            <span>{(den/2).toFixed(1)}/{den}</span>
+            <span>{den}/{den}</span>
+          </div>
+        </div>
+
+        {/* Contenedor Entrada B */}
+        <div style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+          <div style={{ fontSize: "10px", color: "#94a3b8" }}>Bidón Beta</div>
+          <div style={{ fontSize: "15px", fontWeight: "bold", color: "#38bdf8", margin: "2px 0" }}>{num2}/{den}</div>
+          <div style={{ height: "6px", backgroundColor: "#1e293b", borderRadius: "3px", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${(num2/den)*100}%`, backgroundColor: "#38bdf8", transition: "width 0.5s ease" }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// M2: DIAL DE SINTONIZACIÓN DE FRECUENCIA DE COMBUSTIBLE
+const M2FrequencyDialHUD = ({ equation = "1/3 + 1/6 = ?" }) => {
+  const match = equation.match(/(\d+)\/(\d+)\s*\+\s*(\d+)\/(\d+)/);
+  const den1 = match ? parseInt(match[2]) : 3;
+  const den2 = match ? parseInt(match[4]) : 6;
+  const targetDen = Math.max(den1, den2);
+
+  return (
+    <div style={{ backgroundColor: "#030712", border: "1px solid #1e293b", borderRadius: "12px", padding: "12px", marginBottom: "14px", boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#fb923c", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          🧪 DIAL DE SINTONIZACIÓN DE FRECUENCIA DE COMBUSTIBLE · M2
+        </span>
+        <span style={{ fontSize: "10px", backgroundColor: "rgba(251, 146, 60, 0.2)", border: "1px solid #fb923c", color: "#fdba74", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
+          DENOMINADOR COMÚN OBJETIVO: {targetDen}
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", alignItems: "center" }}>
+        <div style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "8px", padding: "8px", display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ fontSize: "22px" }}>🎛️</div>
+          <div>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>Reactor A (Base {den1})</div>
+            <div style={{ fontSize: "12px", color: "#fb923c", fontWeight: "bold" }}>
+              Convertir {den1} ➔ {targetDen} (x{targetDen/den1})
+            </div>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "8px", padding: "8px", display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ fontSize: "22px" }}>⚡</div>
+          <div>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>Reactor B (Base {den2})</div>
+            <div style={{ fontSize: "12px", color: "#4ade80", fontWeight: "bold" }}>
+              {den2 === targetDen ? "Base Común Lista (x1)" : `Ajustar a Base ${targetDen}`}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// M3: MATRIZ DE COMPRESIÓN Y REDUCCIÓN DE CARGA DE VÍVERES
+const M3CargoCompressorHUD = ({ equation = "2/3 + 1/6 = ?" }) => {
+  return (
+    <div style={{ backgroundColor: "#030712", border: "1px solid #1e293b", borderRadius: "12px", padding: "12px", marginBottom: "14px", boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          📦 MATRIZ DE COMPRESIÓN Y REDUCCIÓN DE CARGA · M3
+        </span>
+        <span style={{ fontSize: "10px", backgroundColor: "rgba(168, 85, 247, 0.2)", border: "1px solid #a855f7", color: "#c084fc", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
+          BUSCANDO FRACCIÓN IRREDUCTIBLE
+        </span>
+      </div>
+
+      <div style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "8px", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "20px" }}>🗜️</span>
+          <div>
+            <div style={{ fontSize: "11px", color: "#f8fafc", fontWeight: "bold" }}>Suma + Simplificación de Carga</div>
+            <div style={{ fontSize: "10px", color: "#94a3b8" }}>Si el resultado se puede dividir arriba y abajo por un mismo número, reducí a la mínima expresión.</div>
+          </div>
+        </div>
+        <div style={{ fontSize: "11px", backgroundColor: "#1e1b4b", border: "1px solid #6366f1", color: "#a5b4fc", padding: "4px 10px", borderRadius: "6px", fontWeight: "bold" }}>
+          Factor Simplificador ⚙️
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// M4: CONSOLA DE LANZAMIENTO CON INTERRUPTORES TÁCTICOS
+const M4LaunchConsoleHUD = ({ m4StepIndex = 1 }) => {
+  return (
+    <div style={{ backgroundColor: "#030712", border: "1px solid #0284c7", borderRadius: "12px", padding: "12px", marginBottom: "14px", boxShadow: "0 4px 12px rgba(2, 132, 199, 0.2)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          🚀 CONSOLA DE LANZAMIENTO Y FUSIÓN ESTELAR · M4
+        </span>
+        <span style={{ fontSize: "10px", backgroundColor: "rgba(56, 189, 248, 0.2)", border: "1px solid #38bdf8", color: "#38bdf8", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
+          SECUENCIA PASO {m4StepIndex} / 3
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+        <div style={{ backgroundColor: m4StepIndex >= 1 ? "rgba(16, 185, 129, 0.15)" : "#0f172a", border: m4StepIndex >= 1 ? "1px solid #10b981" : "1px solid #334155", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+          <div style={{ fontSize: "10px", color: m4StepIndex >= 1 ? "#4ade80" : "#94a3b8", fontWeight: "bold" }}>1. Base Común</div>
+          <div style={{ fontSize: "12px", marginTop: "2px" }}>{m4StepIndex > 1 ? "✔ LISTO" : m4StepIndex === 1 ? "⚡ EN CURSO" : "⏳ ESPERA"}</div>
+        </div>
+
+        <div style={{ backgroundColor: m4StepIndex >= 2 ? "rgba(16, 185, 129, 0.15)" : "#0f172a", border: m4StepIndex >= 2 ? "1px solid #10b981" : "1px solid #334155", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+          <div style={{ fontSize: "10px", color: m4StepIndex >= 2 ? "#4ade80" : "#94a3b8", fontWeight: "bold" }}>2. Suma Triple</div>
+          <div style={{ fontSize: "12px", marginTop: "2px" }}>{m4StepIndex > 2 ? "✔ LISTO" : m4StepIndex === 2 ? "⚡ EN CURSO" : "⏳ ESPERA"}</div>
+        </div>
+
+        <div style={{ backgroundColor: m4StepIndex >= 3 ? "rgba(16, 185, 129, 0.15)" : "#0f172a", border: m4StepIndex >= 3 ? "1px solid #10b981" : "1px solid #334155", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
+          <div style={{ fontSize: "10px", color: m4StepIndex >= 3 ? "#4ade80" : "#94a3b8", fontWeight: "bold" }}>3. Simplificación</div>
+          <div style={{ fontSize: "12px", marginTop: "2px" }}>{m4StepIndex === 3 ? "⚡ EN CURSO" : "⏳ ESPERA"}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const getEquipamientoEvolutivo = (completadasCount) => {
   if (completadasCount >= 4) {
     return {
@@ -1679,9 +1849,15 @@ export default function App() {
                 {/* ────────────────────────────────────── */}
                 {(faseMision === "desafio" || faseMision === "exito") && (
                   <div>
+
                     {/* M1, M2 Y M3 */}
                     {misionActual !== "m4" && (
                       <>
+                        {/* 🎮 CONTROLES TÁCTILES POR MISIÓN (FASE 3) */}
+                        {misionActual === "m1" && <M1WaterTankHUD equation={dataM1.equation} />}
+                        {misionActual === "m2" && <M2FrequencyDialHUD equation={dataM2.equation} />}
+                        {misionActual === "m3" && <M3CargoCompressorHUD equation={dataM3.equation} />}
+
                         <div style={styles.consignaBox}>
                           <span style={styles.labelConsigna}>🚰 TU DESAFÍO EN PANTALLA:</span>
                           <div style={styles.ecuacionReal}>
@@ -1726,9 +1902,13 @@ export default function App() {
                       </>
                     )}
 
+
                     {/* MISIÓN INTEGRADORA M4 (CORREGIDA PARA QUE PASEN LOS PASOS) */}
                     {misionActual === "m4" && (
                       <>
+                        {/* 🎮 CONTROL TÁCTICO M4 */}
+                        <M4LaunchConsoleHUD m4StepIndex={m4StepIndex} />
+
                         <div style={styles.consignaBox}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <span style={styles.labelConsigna}>🚀 MISIÓN 4 INTEGRADORA · PARTE {m4StepIndex} DE 3</span>
