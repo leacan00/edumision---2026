@@ -578,51 +578,7 @@ function HyperspaceJump() {
 
   return (
     <div style={hyperspaceStyles.overlay}>
-      <style>{`
-        @keyframes barrelWobble {
-          0% { transform: rotate(0deg); }
-          25% { transform: rotate(-5deg) translateX(-3px); }
-          50% { transform: rotate(5deg) translateX(3px); }
-          75% { transform: rotate(-3deg); }
-          100% { transform: rotate(0deg); }
-        }
-        @keyframes barrelFall {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          30% { transform: translateY(12px) rotate(15deg); }
-          70% { transform: translateY(28px) rotate(-22deg); opacity: 0.7; }
-          100% { transform: translateY(42px) rotate(40deg); opacity: 0.25; }
-        }
-        @keyframes screenShake {
-          0% { transform: translate(0, 0); }
-          20% { transform: translate(-8px, 4px); }
-          40% { transform: translate(8px, -4px); }
-          60% { transform: translate(-5px, 2px); }
-          80% { transform: translate(5px, -2px); }
-          100% { transform: translate(0, 0); }
-        }
-        @keyframes drumDock {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.08) translateY(-8px); filter: brightness(1.4); }
-          100% { transform: scale(1.03); }
-        }
-
-        @keyframes floatXPAnim {
-          0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
-          20% { transform: translate(-50%, -20px) scale(1.3); opacity: 1; filter: drop-shadow(0 0 12px #eab308); }
-          80% { transform: translate(-50%, -50px) scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px #eab308); }
-          100% { transform: translate(-50%, -80px) scale(0.9); opacity: 0; }
-        }
-        @keyframes antennaPulse {
-          0% { box-shadow: 0 0 4px #38bdf8; transform: scale(1); }
-          50% { box-shadow: 0 0 16px #38bdf8, 0 0 24px #38bdf8; transform: scale(1.25); }
-          100% { box-shadow: 0 0 4px #38bdf8; transform: scale(1); }
-        }
-        button { transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease !important; }
-        button:active { transform: scale(0.95) !important; filter: brightness(1.2); }
-        button:hover { filter: brightness(1.1); box-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
-        @keyframes streak { 0% { transform: translateX(-150vw); } 100% { transform: translateX(150vw); } }
-        @keyframes glowFlash { 0% { background-color: rgba(3, 8, 24, 0.4); } 50% { background-color: rgba(56, 189, 248, 0.25); } 100% { background-color: rgba(3, 8, 24, 0.8); } }
-      `}</style>
+      
       {stars.map((star) => (
         <div
           key={star.id}
@@ -1407,6 +1363,51 @@ export default function App() {
 
   return (
     <div style={styles.container}>
+      <style>{`
+        @keyframes barrelWobble {
+          0% { transform: rotate(0deg); }
+          25% { transform: rotate(-5deg) translateX(-3px); }
+          50% { transform: rotate(5deg) translateX(3px); }
+          75% { transform: rotate(-3deg); }
+          100% { transform: rotate(0deg); }
+        }
+        @keyframes barrelFall {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          30% { transform: translateY(12px) rotate(15deg); }
+          70% { transform: translateY(28px) rotate(-22deg); opacity: 0.7; }
+          100% { transform: translateY(42px) rotate(40deg); opacity: 0.25; }
+        }
+        @keyframes screenShake {
+          0% { transform: translate(0, 0); }
+          20% { transform: translate(-8px, 4px); }
+          40% { transform: translate(8px, -4px); }
+          60% { transform: translate(-5px, 2px); }
+          80% { transform: translate(5px, -2px); }
+          100% { transform: translate(0, 0); }
+        }
+        @keyframes drumDock {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.08) translateY(-8px); filter: brightness(1.4); }
+          100% { transform: scale(1.03); }
+        }
+
+        @keyframes floatXPAnim {
+          0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+          20% { transform: translate(-50%, -20px) scale(1.3); opacity: 1; filter: drop-shadow(0 0 12px #eab308); }
+          80% { transform: translate(-50%, -50px) scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px #eab308); }
+          100% { transform: translate(-50%, -80px) scale(0.9); opacity: 0; }
+        }
+        @keyframes antennaPulse {
+          0% { box-shadow: 0 0 4px #38bdf8; transform: scale(1); }
+          50% { box-shadow: 0 0 16px #38bdf8, 0 0 24px #38bdf8; transform: scale(1.25); }
+          100% { box-shadow: 0 0 4px #38bdf8; transform: scale(1); }
+        }
+        button { transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease !important; }
+        button:active { transform: scale(0.95) !important; filter: brightness(1.2); }
+        button:hover { filter: brightness(1.1); box-shadow: 0 0 12px rgba(56, 189, 248, 0.4); }
+        @keyframes streak { 0% { transform: translateX(-150vw); } 100% { transform: translateX(150vw); } }
+        @keyframes glowFlash { 0% { background-color: rgba(3, 8, 24, 0.4); } 50% { background-color: rgba(56, 189, 248, 0.25); } 100% { background-color: rgba(3, 8, 24, 0.8); } }
+      `}</style>
       {transitioning && <HyperspaceJump />}
 
       {/* ────────────────────────────────────────────────────────── */}
