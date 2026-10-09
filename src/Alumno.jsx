@@ -840,6 +840,8 @@ export default function App() {
 
   // Estados de Interacción
   const [opcionSeleccionada, setOpcionSeleccionada] = useState(null);
+  const [m3RejectId, setM3RejectId] = useState(null);
+  const [m3WobbleId, setM3WobbleId] = useState(null);
   const [m2FallingId, setM2FallingId] = useState(null);
   const [m2WobbleId, setM2WobbleId] = useState(null);
   const [feedback, setFeedback] = useState(null);
@@ -1097,6 +1099,8 @@ export default function App() {
       setOpcionSeleccionada(null);
     setM2FallingId(null);
     setM2WobbleId(null);
+    setM3RejectId(null);
+    setM3WobbleId(null);
       setFeedback(null);
       setCopilotMood("idle");
       setM2SimulacroNum(null);
@@ -1120,6 +1124,8 @@ export default function App() {
     setOpcionSeleccionada(null);
     setM2FallingId(null);
     setM2WobbleId(null);
+    setM3RejectId(null);
+    setM3WobbleId(null);
     setFeedback(null);
     setM2SimulacroNum(null);
     setM2StackState("idle");
@@ -1186,6 +1192,8 @@ export default function App() {
       setOpcionSeleccionada(null);
     setM2FallingId(null);
     setM2WobbleId(null);
+    setM3RejectId(null);
+    setM3WobbleId(null);
       setFeedback(null);
       setCopilotMood("idle");
       setCopilotMsg(`Paso ${m4StepIndex + 1} de M4 activo. Resolvé con atención.`);
@@ -1271,6 +1279,14 @@ export default function App() {
           setM2WobbleId(null);
         }, 1800);
       }
+      if (misionActual === "m3" && !opt.correct) {
+        setM3WobbleId(opt.id);
+        setTimeout(() => setM3RejectId(opt.id), 200);
+        setTimeout(() => {
+          setM3RejectId(null);
+          setM3WobbleId(null);
+        }, 1800);
+      }
       if (!misionesConError.includes(misionActual)) {
         setMisionesConError((prev) => [...prev, misionActual]);
       }
@@ -1293,6 +1309,8 @@ export default function App() {
         setOpcionSeleccionada(null);
     setM2FallingId(null);
     setM2WobbleId(null);
+    setM3RejectId(null);
+    setM3WobbleId(null);
       }, 2200);
     }
   };
@@ -1387,6 +1405,26 @@ export default function App() {
           60% { transform: translate(-5px, 3px); }
           80% { transform: translate(5px, -3px); }
           100% { transform: translate(0, 0); }
+        }
+        @keyframes boxWobble {
+          0% { transform: scale(1) rotate(0deg); }
+          20% { transform: scale(1.06) rotate(-8deg); }
+          40% { transform: scale(0.95) rotate(8deg); }
+          60% { transform: scale(1.04) rotate(-5deg); }
+          80% { transform: scale(0.98) rotate(5deg); }
+          100% { transform: scale(1) rotate(0deg); }
+        }
+        @keyframes cargoEject {
+          0% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; filter: drop-shadow(0 0 0 transparent); }
+          25% { transform: translateY(-12px) scale(1.1) rotate(-12deg); filter: drop-shadow(0 0 16px #ec4899); }
+          50% { transform: translateY(50px) scale(0.8) rotate(35deg); opacity: 0.8; }
+          75% { transform: translateY(110px) scale(0.5) rotate(90deg); opacity: 0.4; filter: drop-shadow(0 0 20px #ef4444); }
+          100% { transform: translateY(180px) scale(0.1) rotate(160deg); opacity: 0; filter: blur(6px); }
+        }
+        @keyframes boxCompressDock {
+          0% { transform: scale(1) translateY(0); filter: brightness(1); }
+          50% { transform: scale(1.12) translateY(-10px); filter: brightness(1.5) drop-shadow(0 0 25px #10b981); }
+          100% { transform: scale(1.05) translateY(-6px); filter: brightness(1.3) drop-shadow(0 0 20px #34d399); }
         }
         @keyframes drumDock {
           0% { transform: scale(1) translateY(0); filter: brightness(1); }
@@ -2116,45 +2154,144 @@ export default function App() {
                             </div>
                           )}
 
-                          {misionActual === "m3" && dataM3.options.map((opt) => {
-                            const esSeleccionado = opcionSeleccionada === opt.value;
-                            let borderStyle = "1px solid #a855f7";
-                            let bgStyle = "#140921";
-                            if (esSeleccionado) {
-                              borderStyle = opt.correct ? "2px solid #10b981" : "2px solid #ef4444";
-                              bgStyle = opt.correct ? "rgba(16, 185, 129, 0.25)" : "rgba(239, 68, 68, 0.25)";
-                            }
-                            return (
-                              <button
-                                key={opt.id}
-                                onClick={() => handleSeleccionarOpcion(opt)}
-                                disabled={opcionSeleccionada !== null}
-                                style={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  padding: "12px 10px",
+                          {misionActual === "m3" && (
+                            <div style={{
+                              gridColumn: "1 / -1",
+                              backgroundColor: "#0b0618",
+                              border: m3RejectId ? "2px solid #ef4444" : "2px solid #a855f7",
+                              borderRadius: "14px",
+                              padding: "16px",
+                              marginBottom: "12px",
+                              boxShadow: m3RejectId ? "0 0 30px rgba(239, 68, 68, 0.4)" : "0 8px 24px rgba(168, 85, 247, 0.25)",
+                              position: "relative",
+                              overflow: "hidden",
+                              animation: m3RejectId ? "screenShake 0.4s ease-in-out" : "none",
+                              transition: "all 0.3s ease"
+                            }}>
+                              <div style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: "12px",
+                                borderBottom: "1px solid #3b0764",
+                                paddingBottom: "8px"
+                              }}>
+                                <span style={{ fontSize: "11px", fontWeight: "bold", color: "#c084fc", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                                  📦 BODEGA DE CARGA Y SIMPLIFICACIÓN DE VÍVERES
+                                </span>
+                                <span style={{
+                                  fontSize: "10px",
+                                  backgroundColor: m3RejectId ? "rgba(239, 68, 68, 0.2)" : "rgba(168, 85, 247, 0.2)",
+                                  border: m3RejectId ? "1px solid #ef4444" : "1px solid #c084fc",
+                                  color: m3RejectId ? "#fca5a5" : "#e9d5ff",
+                                  padding: "2px 8px",
                                   borderRadius: "10px",
-                                  border: borderStyle,
-                                  backgroundColor: bgStyle,
-                                  color: "#ffffff",
-                                  cursor: opcionSeleccionada !== null ? "not-allowed" : "pointer",
-                                  boxShadow: "inset 0 0 8px rgba(168, 85, 247, 0.15)"
-                                }}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "3px" }}>
-                                  <span style={{ fontSize: "9px", fontWeight: "bold", color: "#c084fc", textTransform: "uppercase" }}>
-                                    • MÓDULO {opt.id} •
-                                  </span>
-                                  <span style={{ fontSize: "8px", backgroundColor: "rgba(168, 85, 247, 0.2)", color: "#e9d5ff", padding: "1px 4px", borderRadius: "4px" }}>
-                                    🗜️ SIMPL
-                                  </span>
+                                  fontWeight: "bold"
+                                }}>
+                                  {m3RejectId ? "⚠️ EYECIÓN DE RACIÓN NO VÁLIDA" : "⚙️ BODEGA ESTABLE"}
+                                </span>
+                              </div>
+
+                              <div style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr 1fr 1fr",
+                                gap: "12px"
+                              }}>
+                                {dataM3.options.map((opt) => {
+                                  const esSeleccionado = opcionSeleccionada === opt.value;
+                                  const isWobbling = m3WobbleId === opt.id;
+                                  const isRejecting = m3RejectId === opt.id;
+
+                                  let borderStyle = "2px solid #6b21a8";
+                                  let bgStyle = "linear-gradient(180deg, #1e1138 0%, #0d071a 100%)";
+                                  let transformStyle = "scale(1)";
+                                  let animStyle = "none";
+
+                                  if (isWobbling) {
+                                    animStyle = "boxWobble 0.25s infinite ease-in-out";
+                                    borderStyle = "2px solid #ef4444";
+                                  }
+                                  if (isRejecting) {
+                                    animStyle = "cargoEject 1.2s forwards ease-in";
+                                    borderStyle = "2px solid #dc2626";
+                                  }
+
+                                  if (esSeleccionado && opt.correct) {
+                                    borderStyle = "2px solid #10b981";
+                                    bgStyle = "linear-gradient(180deg, #064e3b 0%, #022c22 100%)";
+                                    transformStyle = "translateY(-6px) scale(1.04)";
+                                    animStyle = "boxCompressDock 0.6s forwards ease-out";
+                                  }
+
+                                  return (
+                                    <button
+                                      key={opt.id}
+                                      onClick={() => handleSeleccionarOpcion(opt)}
+                                      disabled={opcionSeleccionada !== null || m3RejectId !== null}
+                                      style={{
+                                        position: "relative",
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justify: "center",
+                                        padding: "14px 6px 10px 6px",
+                                        borderRadius: "12px",
+                                        border: borderStyle,
+                                        background: bgStyle,
+                                        color: "#ffffff",
+                                        cursor: (opcionSeleccionada !== null || m3RejectId !== null) ? "not-allowed" : "pointer",
+                                        transform: transformStyle,
+                                        animation: animStyle,
+                                        transition: "transform 0.2s ease, border-color 0.2s ease",
+                                        boxShadow: (esSeleccionado && opt.correct)
+                                          ? "0 0 20px rgba(16, 185, 129, 0.6)"
+                                          : "0 4px 12px rgba(0,0,0,0.6)"
+                                      }}
+                                    >
+                                      <div style={{
+                                        display: "flex",
+                                        justify: "space-between",
+                                        alignItems: "center",
+                                        width: "100%",
+                                        padding: "0 4px",
+                                        marginBottom: "4px"
+                                      }}>
+                                        <span style={{ fontSize: "8px", fontWeight: "bold", color: "#d8b4fe", textTransform: "uppercase" }}>
+                                          MÓDULO {opt.id}
+                                        </span>
+                                        <span style={{ fontSize: "7px", backgroundColor: "rgba(168, 85, 247, 0.25)", color: "#f3e8ff", padding: "1px 4px", borderRadius: "4px" }}>
+                                          🗜️ SIMPL
+                                        </span>
+                                      </div>
+                                      <div style={{ fontSize: "28px", lineHeight: "1", margin: "2px 0 4px 0" }}>
+                                        📦
+                                      </div>
+                                      <div style={{ fontSize: "18px", fontWeight: "800", color: "#ffffff" }}>
+                                        {opt.value}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {m3RejectId && (
+                                <div style={{
+                                  marginTop: "12px",
+                                  padding: "8px 12px",
+                                  backgroundColor: "rgba(239, 68, 68, 0.2)",
+                                  border: "1px solid #ef4444",
+                                  borderRadius: "8px",
+                                  color: "#fca5a5",
+                                  fontSize: "11px",
+                                  textAlign: "center",
+                                  fontWeight: "bold",
+                                  animation: "redAlertFlash 0.5s infinite alternate"
+                                }}>
+                                  💥 ¡RACIÓN NO SIMPLIFICADA! El módulo no está en su versión irreducible. Eyectando contenedor y reordenando bodega...
                                 </div>
-                                <div style={{ fontSize: "17px", fontWeight: "bold", color: "#ffffff", textAlign: "center", margin: "1px 0" }}>
-                                  📦 {opt.value}
-                                </div>
-                              </button>
-                            );
-                          })}
+                              )}
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
