@@ -36,7 +36,7 @@ function slug(text) {
 // ==========================================
 // 📊 EXPORTADOR DE INFORME FORMATEADO EXCEL (.XLS HTML) VINCULADO CON VALORACIONES
 // ==========================================
-const exportToFormattedExcelWithSurveys = (filename, docentes, alumnos, valoraciones) => {
+const exportToFormattedExcelWithSurveys = (filename, docentes, alumnos, valoraciones, valoracionesAlumnos = []) => {
   const bom = "\uFEFF";
   const totalAlumnos = alumnos.length;
   const asignadosCount = alumnos.filter((a) => a.docenteId).length;
@@ -76,6 +76,7 @@ const exportToFormattedExcelWithSurveys = (filename, docentes, alumnos, valoraci
       <td><div class="kpi-title">Insignias Acreditadas</div><div class="kpi-val">${conInsigniaCount}</div></td>
       <td><div class="kpi-title">Promedio XP</div><div class="kpi-val">${avgXp} XP</div></td>
       <td><div class="kpi-title">Valoraciones Docentes</div><div class="kpi-val">${valoraciones.length}</div></td>
+      <td><div class="kpi-title">Cuestionarios Alumnos</div><div class="kpi-val">${valoracionesAlumnos.length}</div></td>
     </tr>
   </table>
 
@@ -149,6 +150,42 @@ const exportToFormattedExcelWithSurveys = (filename, docentes, alumnos, valoraci
       }).join("")}
     </tbody>
   </table>
+  <h2>3️⃣ CUESTIONARIOS DE CIERRE Y VALORACIONES DE ALUMNOS (${valoracionesAlumnos.length})</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Alumno</th>
+        <th>Escuela / Curso</th>
+        <th>Aprender / Reforzar Fracciones</th>
+        <th>Simuladores EduBot</th>
+        <th>Recibir Más Misiones</th>
+        <th>Recomienda EduMisión</th>
+        <th>Sugerencias del Alumno</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${valoracionesAlumnos.length === 0 ? `
+        <tr><td colSpan="7" style="font-style:italic; color:#64748b; text-align:center;">No hay cuestionarios de cierre enviados por alumnos todavía.</td></tr>
+      ` : valoracionesAlumnos.map((v) => {
+        const r = v.respuestas || {};
+        const alumnoObj = alumnos.find((a) => a.id === v.alumnoId) || {};
+        const name = alumnoObj.nickname || v.alumno || v.nombre || "Alumno";
+        const esc = alumnoObj.escuela || v.escuela || "-";
+        const cur = alumnoObj.curso || v.curso || "1° Año";
+        return `
+          <tr>
+            <td><strong>🚀 ${name}</strong></td>
+            <td>${esc} (${cur})</td>
+            <td>${r.conocimientoPrevio || r.aprendizaje || "-"}</td>
+            <td>${r.utilidadSimulacros || r.simuladores || "-"}</td>
+            <td>${r.recibirInformacion || r.masMisiones || "-"}</td>
+            <td>${r.recomendarEduMision || r.recomienda || "-"}</td>
+            <td><em>"${r.sugerenciasMejora || r.sugerencias || "Sin comentarios"}"</em></td>
+          </tr>
+        `;
+      }).join("")}
+    </tbody>
+  </table>
 </body>
 </html>`;
 
@@ -172,7 +209,18 @@ export default function App() {
   // Estados de Datos
   const [docentes, setDocentes] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
-  const [valoraciones, setValoraciones] = useState([]); // 2.c FIX
+  const [valoraciones, setValoraciones] = useState([]);
+  const [valoracionesAlumnos, setValoracionesAlumnos] = useState([]);
+  const [valoracionesAlumnosDirectas, setValoracionesAlumnosDirectas] = useState([]);
+
+  // Consolidación de valoraciones de alumnos (evitando duplicados)
+  const valoracionesAlumnosConsolidadas = (() => {
+    const map = new Map();
+    [...valoracionesAlumnos, ...valoracionesAlumnosDirectas].forEach((v) => {
+      if (v.id) map.set(v.id, v);
+    });
+    return Array.from(map.values());
+  })(); // 2.c FIX
   const [liveLogs, setLiveLogs] = useState([]);
   const [toast, setToast] = useState(null);
 
@@ -262,10 +310,39 @@ export default function App() {
       (err) => console.error("Error Snapshot Bitácora:", err)
     );
 
+    // 3.b Encuestas y Cuestionario de Cierre de Alumnos
+    const unsubEncuestas = onSnapshot(
+      collection(db, "encuestas"),
+      (snap) => {
+        const list = [];
+        snap.forEach((e) => {
+          const data = e.data();
+          if (!data.tipo || data.tipo === "alumno_cierre") {
+            list.push({ id: e.id, ...data });
+          }
+        });
+        setValoracionesAlumnos(list);
+      },
+      (err) => console.error("Error Snapshot Encuestas Alumnos:", err)
+    );
+
+    // 3.c Colección alternativa valoraciones_alumnos por compatibilidad
+    const unsubValoracionesAlumnos = onSnapshot(
+      collection(db, "valoraciones_alumnos"),
+      (snap) => {
+        const list = [];
+        snap.forEach((v) => list.push({ id: v.id, ...v.data() }));
+        setValoracionesAlumnosDirectas(list);
+      },
+      (err) => console.error("Error Snapshot Valoraciones Alumnos:", err)
+    );
+
     return () => {
       unsubDocentes();
       unsubAlumnos();
       unsubValoraciones();
+      unsubEncuestas();
+      unsubValoracionesAlumnos();
       unsubBitacora();
     };
   }, [isAuthenticated]);
@@ -421,7 +498,8 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
       `EduMision_Córdoba_Reporte_Consolidado_${new Date().toISOString().slice(0, 10)}.xls`,
       docentes,
       alumnos,
-      valoraciones
+      valoraciones,
+      valoracionesAlumnosConsolidadas
     );
     showToast("📊 Reporte Consolidado (.xls) con Valoraciones Docentes exportado con éxito.");
   };
@@ -792,6 +870,79 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
                       <td style={{ padding: "10px", color: "#fb923c" }}>{r.sintesisFamilias || "-"}</td>
                       <td style={{ padding: "10px", color: "#f8fafc", fontStyle: "italic", maxWidth: "250px" }}>
                         "{r.sugerenciasMejora || "Sin comentarios adicionales"}"
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 3.b SECTOR: CUESTIONARIO DE CIERRE Y VALORACIONES DE ALUMNOS */}
+      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+          <div>
+            <h2 style={{ color: "#38bdf8", margin: 0, fontSize: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
+              🎓 CUESTIONARIOS DE CIERRE Y VALORACIÓN DE ALUMNOS ({valoracionesAlumnosConsolidadas.length})
+            </h2>
+            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+              Respuestas de percepción, utilidades y experiencia del estudiante recibidas al finalizar misiones
+            </span>
+          </div>
+          <div style={{ fontSize: "11px", backgroundColor: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", padding: "4px 10px", borderRadius: "20px", border: "1px solid #0284c7", fontWeight: "bold" }}>
+            Feedback Estudiantil en Vivo
+          </div>
+        </div>
+
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #1e293b", color: "#64748b", textAlign: "left" }}>
+                <th style={{ padding: "10px" }}>Alumno / Escuela</th>
+                <th style={{ padding: "10px" }}>¿Reforzó Fracciones?</th>
+                <th style={{ padding: "10px" }}>Simuladores EduBot</th>
+                <th style={{ padding: "10px" }}>Recibir Más Misiones</th>
+                <th style={{ padding: "10px" }}>Recomienda EduMisión</th>
+                <th style={{ padding: "10px" }}>Sugerencias y Comentarios</th>
+              </tr>
+            </thead>
+            <tbody>
+              {valoracionesAlumnosConsolidadas.length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ fontStyle: "italic", color: "#64748b", padding: "20px", textAlign: "center" }}>
+                    Aún no hay cuestionarios de cierre enviados por alumnos.
+                  </td>
+                </tr>
+              ) : (
+                valoracionesAlumnosConsolidadas.map((v) => {
+                  const r = v.respuestas || {};
+                  const alumnoObj = alumnos.find((a) => a.id === v.alumnoId) || {};
+                  const nombreAlumno = alumnoObj.nickname || v.alumno || v.nombre || "Alumno Explorador";
+                  const escuela = alumnoObj.escuela || v.escuela || "Escuela";
+                  const curso = alumnoObj.curso || v.curso || "1° Año";
+
+                  return (
+                    <tr key={v.id} style={{ borderBottom: "1px solid #020617" }}>
+                      <td style={{ padding: "10px" }}>
+                        <strong style={{ color: "#facc15" }}>🚀 {nombreAlumno}</strong>
+                        <div style={{ fontSize: "11px", color: "#94a3b8" }}>{escuela} ({curso})</div>
+                      </td>
+                      <td style={{ padding: "10px", color: "#4ade80", fontWeight: "bold" }}>
+                        {r.conocimientoPrevio || r.aprendizaje || "-"}
+                      </td>
+                      <td style={{ padding: "10px", color: "#38bdf8" }}>
+                        {r.utilidadSimulacros || r.simuladores || "-"}
+                      </td>
+                      <td style={{ padding: "10px", color: "#c084fc" }}>
+                        {r.recibirInformacion || r.masMisiones || "-"}
+                      </td>
+                      <td style={{ padding: "10px", color: "#fb923c" }}>
+                        {r.recomendarEduMision || r.recomienda || "-"}
+                      </td>
+                      <td style={{ padding: "10px", color: "#f8fafc", fontStyle: "italic", maxWidth: "250px" }}>
+                        "{r.sugerenciasMejora || r.sugerencias || "Sin comentarios adicionales"}"
                       </td>
                     </tr>
                   );
