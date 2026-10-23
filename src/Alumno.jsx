@@ -630,6 +630,195 @@ const hyperspaceStyles = {
 // ==========================================
 // 🤖 EDUBOT (COPILOTO ROBOT)
 // ==========================================
+
+// ==========================================
+// 🚀 NAVE ESPACIAL Y ASTRONAUTA EVOLUTIVO
+// ==========================================
+function NaveEvolutivaVisual({ misionesCompletadas, misionesDiamante, misionActual }) {
+  const getModuleStatus = (mId) => {
+    if (misionesDiamante.includes(mId)) return "diamante";
+    if (misionesCompletadas.includes(mId)) return "verde";
+    if (misionActual === mId || (mId === "m1" && misionesCompletadas.length === 0)) return "rojo";
+    return "gris";
+  };
+
+  const statusM1 = getModuleStatus("m1");
+  const statusM2 = getModuleStatus("m2");
+  const statusM3 = getModuleStatus("m3");
+  const statusM4 = getModuleStatus("m4");
+
+  const getStyleForStatus = (status) => {
+    if (status === "diamante") return {
+      borderColor: "#00f3ff",
+      bgColor: "rgba(0, 243, 255, 0.2)",
+      textColor: "#00f3ff",
+      glow: "0 0 12px rgba(0, 243, 255, 0.6)",
+      label: "💎 Diamante"
+    };
+    if (status === "verde") return {
+      borderColor: "#10b981",
+      bgColor: "rgba(16, 185, 129, 0.2)",
+      textColor: "#4ade80",
+      glow: "0 0 8px rgba(16, 185, 129, 0.4)",
+      label: "🟢 Ensamblada"
+    };
+    if (status === "rojo") return {
+      borderColor: "#f87171",
+      bgColor: "rgba(248, 113, 113, 0.15)",
+      textColor: "#f87171",
+      glow: "0 0 6px rgba(248, 113, 113, 0.3)",
+      label: "🔴 En instalación"
+    };
+    return {
+      borderColor: "#334155",
+      bgColor: "rgba(15, 23, 42, 0.5)",
+      textColor: "#64748b",
+      glow: "none",
+      label: "⚪ Pendiente"
+    };
+  };
+
+  const s1 = getStyleForStatus(statusM1);
+  const s2 = getStyleForStatus(statusM2);
+  const s3 = getStyleForStatus(statusM3);
+  const s4 = getStyleForStatus(statusM4);
+
+  const isAllDiamante = misionesDiamante.length === 4;
+  const isAllCompleted = misionesCompletadas.length === 4;
+
+  return (
+    <div style={{
+      backgroundColor: "#070c22",
+      border: isAllDiamante ? "2px solid #00f3ff" : "1px solid #1e293b",
+      borderRadius: "12px",
+      padding: "16px",
+      marginBottom: "16px",
+      boxShadow: isAllDiamante ? "0 0 25px rgba(0, 243, 255, 0.4)" : "0 4px 12px rgba(0, 0, 0, 0.3)"
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "22px" }}>🚀</span>
+          <span style={{ fontSize: "14px", fontWeight: "bold", color: isAllDiamante ? "#00f3ff" : "#38bdf8", letterSpacing: "0.5px" }}>
+            ENSAMBLADO DE LA NAVE ESPACIAL Y ASTRONAUTA
+          </span>
+        </div>
+        <div style={{ fontSize: "12px", color: isAllDiamante ? "#00f3ff" : "#94a3b8", fontWeight: "bold" }}>
+          {isAllDiamante ? "💎 NAVE DIAMANTE ESTELAR COMPLETA" : isAllCompleted ? "🟢 NAVE ENSAMBLADA (Reintentá para Diamante)" : `${misionesCompletadas.length}/4 Piezas Instaladas`}
+        </div>
+      </div>
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "130px 1fr",
+        gap: "16px",
+        alignItems: "center",
+        backgroundColor: "#02040e",
+        padding: "14px",
+        borderRadius: "10px",
+        border: "1px solid #1e293b"
+      }}>
+        {/* FIGURA DEL ASTRONAUTITA */}
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "rgba(15, 23, 42, 0.9)",
+          border: isAllDiamante ? "2px solid #00f3ff" : "1px solid #38bdf8",
+          borderRadius: "10px",
+          padding: "12px",
+          boxShadow: isAllDiamante ? "0 0 15px rgba(0, 243, 255, 0.5)" : "none"
+        }}>
+          <div style={{
+            fontSize: "48px",
+            filter: "drop-shadow(0 0 10px rgba(56, 189, 248, 0.6))"
+          }}>
+            👨‍🚀
+          </div>
+          <div style={{ fontSize: "11px", fontWeight: "bold", color: "#38bdf8", marginTop: "4px", textAlign: "center" }}>
+            ASTRONAUTA
+          </div>
+          <div style={{ fontSize: "10px", color: isAllDiamante ? "#00f3ff" : isAllCompleted ? "#4ade80" : "#94a3b8", fontWeight: "bold" }}>
+            {isAllDiamante ? "💎 Rango Diamante" : isAllCompleted ? "🟢 Piloto Oficial" : "👨‍🚀 Cadete"}
+          </div>
+        </div>
+
+        {/* MÓDULOS DE LA NAVE ENSAMBLABLE */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+          {/* MÓDULO 1 */}
+          <div style={{
+            backgroundColor: s1.bgColor,
+            border: `1px solid ${s1.borderColor}`,
+            borderRadius: "8px",
+            padding: "8px 10px",
+            boxShadow: s1.glow
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
+              <span style={{ fontWeight: "bold", color: "#ffffff" }}>💧 Base & Agua (M1)</span>
+              <span style={{ fontSize: "10px", color: s1.textColor, fontWeight: "bold" }}>{s1.label}</span>
+            </div>
+            <div style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
+              Tanques y Válvula de Presión
+            </div>
+          </div>
+
+          {/* MÓDULO 2 */}
+          <div style={{
+            backgroundColor: s2.bgColor,
+            border: `1px solid ${s2.borderColor}`,
+            borderRadius: "8px",
+            padding: "8px 10px",
+            boxShadow: s2.glow
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
+              <span style={{ fontWeight: "bold", color: "#ffffff" }}>⛽ Combustible (M2)</span>
+              <span style={{ fontSize: "10px", color: s2.textColor, fontWeight: "bold" }}>{s2.label}</span>
+            </div>
+            <div style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
+              Módulo Bioestacional
+            </div>
+          </div>
+
+          {/* MÓDULO 3 */}
+          <div style={{
+            backgroundColor: s3.bgColor,
+            border: `1px solid ${s3.borderColor}`,
+            borderRadius: "8px",
+            padding: "8px 10px",
+            boxShadow: s3.glow
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
+              <span style={{ fontWeight: "bold", color: "#ffffff" }}>📡 Antena & Víveres (M3)</span>
+              <span style={{ fontSize: "10px", color: s3.textColor, fontWeight: "bold" }}>{s3.label}</span>
+            </div>
+            <div style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
+              Alas y Paneles Solares
+            </div>
+          </div>
+
+          {/* MÓDULO 4 */}
+          <div style={{
+            backgroundColor: s4.bgColor,
+            border: `1px solid ${s4.borderColor}`,
+            borderRadius: "8px",
+            padding: "8px 10px",
+            boxShadow: s4.glow
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
+              <span style={{ fontWeight: "bold", color: "#ffffff" }}>⚡ Reactor Estelar (M4)</span>
+              <span style={{ fontSize: "10px", color: s4.textColor, fontWeight: "bold" }}>{s4.label}</span>
+            </div>
+            <div style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
+              Propulsor de Fusión Cuántica
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function EduBotCopilot({ mood, message, onClickHelp, onClickQueMeEquivoque, errorWarning }) {
   return (
     <div style={botStyles.container}>
@@ -1679,6 +1868,8 @@ export default function App() {
               </button>
             )}
           </header>
+
+          <NaveEvolutivaVisual misionesCompletadas={misionesCompletadas} misionesDiamante={misionesDiamante} misionActual={misionActual} />
 
           {/* LÍNEA BARRA XP */}
           <div style={styles.xpCardFullWidth}>
