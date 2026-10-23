@@ -636,7 +636,7 @@ const hyperspaceStyles = {
 // ==========================================
 // 🚀 COMPONENTE 2D NAVE Y ASTRONAUTA EN EL MISMO RECUADRO
 // ==========================================
-function NaveSideBySideSvg({ misionesCompletadas, misionesDiamante, perfilAlumno, gear, onOpenCierre, allCompleted }) {
+function NaveSideBySideSvg({ misionesCompletadas, misionesDiamante, perfilAlumno, gear, onOpenCierre, allCompleted, m4StepIndex = 1, misionActual }) {
   const isDiamante = (id) => misionesDiamante.includes(id);
   const isDone = (id) => misionesCompletadas.includes(id);
 
@@ -646,103 +646,173 @@ function NaveSideBySideSvg({ misionesCompletadas, misionesDiamante, perfilAlumno
     return "#334155";                     // Gris Pelada
   };
 
-  const cM1 = getColor("m1"); // M1: Cabina
-  const cM2 = getColor("m2"); // M2: Motor
+  const cM1 = getColor("m1"); // M1: Cabina / Cúpula
+  const cM2 = getColor("m2"); // M2: Motor / Toberas
   const cM3 = getColor("m3"); // M3: Alas / Paneles
-  const cM4 = getColor("m4"); // M4: Reactor / Núcleo
+  
+  // Manejo de M4 y sus partes parciales (Pasos 1, 2 y 3)
+  let cM4 = getColor("m4");
+  let m4Part1Color = cM4;
+  let m4Part2Color = cM4;
+  let m4Part3Color = cM4;
+
+  if (!isDone("m4") && !isDiamante("m4")) {
+    if (misionActual === "m4") {
+      m4Part1Color = m4StepIndex >= 1 ? "#38bdf8" : "#334155";
+      m4Part2Color = m4StepIndex >= 2 ? "#38bdf8" : "#334155";
+      m4Part3Color = m4StepIndex >= 3 ? "#eab308" : "#334155";
+      cM4 = m4StepIndex >= 3 ? "#eab308" : "#334155";
+    } else {
+      m4Part1Color = "#334155";
+      m4Part2Color = "#334155";
+      m4Part3Color = "#334155";
+      cM4 = "#334155";
+    }
+  }
 
   return (
     <div style={{
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      backgroundColor: "rgba(7, 12, 34, 0.85)",
-      borderRadius: "12px",
-      padding: "14px 18px",
+      backgroundColor: "rgba(7, 12, 34, 0.9)",
+      borderRadius: "16px",
+      padding: "20px 24px",
       border: allCompleted ? "2px solid #00f3ff" : "1px solid #1e293b",
-      boxShadow: allCompleted ? "0 0 25px rgba(0, 243, 255, 0.3)" : "none",
-      marginBottom: "16px",
+      boxShadow: allCompleted ? "0 0 35px rgba(0, 243, 255, 0.4)" : "0 8px 24px rgba(0,0,0,0.4)",
+      marginBottom: "20px",
       flexWrap: "wrap",
-      gap: "14px"
+      gap: "20px"
     }}>
-      {/* LADO IZQUIERDO: ASTRONAUTA Y DATOS DE COMPROMISO */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        <span style={{ fontSize: "38px", filter: "drop-shadow(0 0 8px rgba(56,189,248,0.5))" }}>{gear.avatarIcon}</span>
+      {/* LADO IZQUIERDO: ASTRONAUTA Y DATOS DE EXPEDICIÓN CON LETRAS GRANDES */}
+      <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
+        <div style={{
+          backgroundColor: "#020617",
+          padding: "12px 18px",
+          borderRadius: "14px",
+          border: `2px solid ${gear.badgeColor}`,
+          boxShadow: `0 0 20px ${gear.badgeColor}40`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <span style={{ fontSize: "50px", filter: "drop-shadow(0 0 10px rgba(56,189,248,0.6))" }}>{gear.avatarIcon}</span>
+        </div>
+
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "18px", fontWeight: "bold", color: "#38bdf8" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "22px", fontWeight: "900", color: "#38bdf8", letterSpacing: "0.5px" }}>
               {perfilAlumno.nickname || "Explorador/a"}
             </span>
-            <span style={{ backgroundColor: "rgba(15, 23, 42, 0.8)", border: `1px solid ${gear.badgeColor}`, color: gear.badgeColor, fontSize: "11px", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
+            <span style={{
+              backgroundColor: "rgba(15, 23, 42, 0.9)",
+              border: `1px solid ${gear.badgeColor}`,
+              color: gear.badgeColor,
+              fontSize: "12px",
+              padding: "4px 12px",
+              borderRadius: "12px",
+              fontWeight: "bold"
+            }}>
               {gear.rango}
             </span>
           </div>
-          <div style={{ fontSize: "13px", color: "#9ca3af", marginTop: "2px" }}>
-            🪖 {gear.casco} · {perfilAlumno.escuela} ({perfilAlumno.curso})
+
+          <div style={{ fontSize: "14px", color: "#cbd5e1", marginTop: "6px", lineHeight: "1.5" }}>
+            🪖 <strong>Equipo:</strong> {gear.casco} <br />
+            🏫 <strong>Escuela:</strong> {perfilAlumno.escuela} ({perfilAlumno.curso})
           </div>
-        </div>
-      </div>
 
-      {/* LADO DERECHO: NAVE EN DIBUJO 2D SVG QUE SE PINTA MISION A MISION */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", backgroundColor: "#020617", padding: "10px 14px", borderRadius: "10px", border: "1px solid #1e293b" }}>
-        <svg width="110" height="80" viewBox="0 0 160 120" style={{ filter: allCompleted ? "drop-shadow(0 0 8px rgba(0, 243, 255, 0.7))" : "none" }}>
-          {/* M3: ALAS Y PANELES (Lados) */}
-          <path d="M 30 70 L 60 55 L 60 85 Z" fill={cM3} stroke="#64748b" strokeWidth="1.5" />
-          <path d="M 130 70 L 100 55 L 100 85 Z" fill={cM3} stroke="#64748b" strokeWidth="1.5" />
-
-          {/* M2: MOTOR Y PROPULSORES (Abajo) */}
-          <rect x="68" y="85" width="24" height="15" rx="3" fill={cM2} stroke="#64748b" strokeWidth="1.5" />
-          {cM2 !== "#334155" && (
-            <polygon points="72,100 80,115 88,100" fill={cM2 === "#00f3ff" ? "#00f3ff" : "#f59e0b"} />
-          )}
-
-          {/* FUSELAJE BASE (Gris neutro) */}
-          <path d="M 60 50 L 80 20 L 100 50 L 100 85 L 60 85 Z" fill="#1e293b" stroke="#64748b" strokeWidth="1.5" />
-
-          {/* M1: CABINA (Arriba / Cúpula) */}
-          <path d="M 68 45 C 68 30, 92 30, 92 45 Z" fill={cM1} stroke="#e2e8f0" strokeWidth="1.5" />
-
-          {/* M4: NÚCLEO Y REACTOR (Centro) */}
-          <circle cx="80" cy="68" r="10" fill={cM4} stroke="#ffffff" strokeWidth="1.5" />
-        </svg>
-
-        <div style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: "1.4" }}>
-          <div style={{ fontWeight: "bold", color: "#38bdf8", marginBottom: "2px" }}>🚀 NAVE ESPACIAL</div>
-          <div style={{ fontSize: "11px" }}>💧 M1 Cabina: <span style={{ color: cM1, fontWeight: "bold" }}>{cM1 === "#00f3ff" ? "💎 Diamante" : cM1 === "#10b981" ? "🟢 Lista" : "⚪ Gris"}</span></div>
-          <div style={{ fontSize: "11px" }}>⛽ M2 Motor: <span style={{ color: cM2, fontWeight: "bold" }}>{cM2 === "#00f3ff" ? "💎 Diamante" : cM2 === "#10b981" ? "🟢 Listo" : "⚪ Gris"}</span></div>
-          <div style={{ fontSize: "11px" }}>📡 M3 Alas: <span style={{ color: cM3, fontWeight: "bold" }}>{cM3 === "#00f3ff" ? "💎 Diamante" : cM3 === "#10b981" ? "🟢 Listas" : "⚪ Gris"}</span></div>
-          <div style={{ fontSize: "11px" }}>⚡ M4 Reactor: <span style={{ color: cM4, fontWeight: "bold" }}>{cM4 === "#00f3ff" ? "💎 Diamante" : cM4 === "#10b981" ? "🟢 Listo" : "⚪ Gris"}</span></div>
           {allCompleted && (
-            <div style={{ fontWeight: "bold", color: "#fef08a", marginTop: "2px", fontSize: "11px" }}>
-              🏆 INSIGNIA FINAL ACTIVA
+            <div style={{ marginTop: "10px" }}>
+              <button
+                onClick={onOpenCierre}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: "10px",
+                  border: "1px solid #10b981",
+                  backgroundColor: "rgba(16, 185, 129, 0.2)",
+                  color: "#4ade80",
+                  fontWeight: "bold",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  boxShadow: "0 0 15px rgba(16, 185, 129, 0.3)"
+                }}
+              >
+                📝 COMPLETAR CUESTIONARIO DE CIERRE
+              </button>
             </div>
           )}
         </div>
+      </div>
 
-        {allCompleted && (
-          <button
-            onClick={onOpenCierre}
-            style={{
-              padding: "8px 12px",
-              backgroundColor: "#10b981",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "8px",
-              fontWeight: "bold",
-              fontSize: "11px",
-              cursor: "pointer",
-              marginLeft: "8px"
-            }}
-          >
-            📝 Cierre
-          </button>
-        )}
+      {/* LADO DERECHO: NAVE DIBUJO SVG AMPLIADO Y CLARO CON ENSAMBLADO EN VIVO */}
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        backgroundColor: "#020617",
+        padding: "14px 20px",
+        borderRadius: "14px",
+        border: "1px solid #1e293b",
+        boxShadow: "inset 0 0 20px rgba(0,0,0,0.8)"
+      }}>
+        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#38bdf8", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "1px" }}>
+          🚀 ENSAMBLADO DE NAVE EN VIVO
+        </div>
+
+        <svg width="220" height="135" viewBox="0 0 240 150" style={{ filter: allCompleted ? "drop-shadow(0 0 12px rgba(0, 243, 255, 0.8))" : "none" }}>
+          {/* M3: ALAS Y PANELES SOLARES LATERALES (Izquierda y Derecha) */}
+          <path d="M 20 85 L 70 65 L 70 110 L 20 100 Z" fill={cM3} stroke="#64748b" strokeWidth="2" />
+          <path d="M 220 85 L 170 65 L 170 110 L 220 100 Z" fill={cM3} stroke="#64748b" strokeWidth="2" />
+          {/* Líneas de celdas solares M3 */}
+          <line x1="35" y1="80" x2="35" y2="100" stroke="#020617" strokeWidth="1.5" />
+          <line x1="52" y1="72" x2="52" y2="105" stroke="#020617" strokeWidth="1.5" />
+          <line x1="205" y1="80" x2="205" y2="100" stroke="#020617" strokeWidth="1.5" />
+          <line x1="188" y1="72" x2="188" y2="105" stroke="#020617" strokeWidth="1.5" />
+
+          {/* M2: BLOQUE MOTOR Y PROPULSORES (Abajo) */}
+          <rect x="80" y="105" width="80" height="24" rx="4" fill={cM2} stroke="#64748b" strokeWidth="2" />
+          {/* Toberas izquierda y derecha */}
+          <path d="M 88 129 L 82 142 L 102 142 L 98 129 Z" fill={cM2} stroke="#64748b" strokeWidth="1.5" />
+          <path d="M 142 129 L 138 142 L 158 142 L 152 129 Z" fill={cM2} stroke="#64748b" strokeWidth="1.5" />
+          {/* Fuego / Plasma de propulsión si M2 completado */}
+          {cM2 !== "#334155" && (
+            <>
+              <polygon points="85,142 92,152 99,142" fill={cM2 === "#00f3ff" ? "#00f3ff" : "#f59e0b"} />
+              <polygon points="141,142 148,152 155,142" fill={cM2 === "#00f3ff" ? "#00f3ff" : "#f59e0b"} />
+            </>
+          )}
+
+          {/* FUSELAJE BASE CENTRAL (Gris Metalizado) */}
+          <path d="M 70 65 L 120 15 L 170 65 L 170 105 L 70 105 Z" fill="#1e293b" stroke="#64748b" strokeWidth="2" />
+
+          {/* M1: CABINA / CÚPULA LUNAR (Arriba - Nariz) */}
+          <path d="M 85 58 C 85 30, 155 30, 155 58 Z" fill={cM1} stroke="#e2e8f0" strokeWidth="2" />
+          <circle cx="120" cy="48" r="8" fill="rgba(255,255,255,0.3)" />
+
+          {/* M4: REACTOR DE FUSIÓN CUÁNTICA & ANILLOS PARCIALES */}
+          {/* M4 Anillo Inferior (Paso 1) */}
+          <rect x="95" y="88" width="50" height="6" rx="3" fill={m4Part1Color} stroke="#e2e8f0" strokeWidth="1" />
+          {/* M4 Conductos de Plasma (Paso 2) */}
+          <line x1="90" y1="80" x2="150" y2="80" stroke={m4Part2Color} strokeWidth="3" />
+          {/* M4 Núcleo Reactor Central (Paso 3 / Completo) */}
+          <circle cx="120" cy="80" r="14" fill={m4Part3Color} stroke="#ffffff" strokeWidth="2" />
+          {cM4 !== "#334155" && (
+            <circle cx="120" cy="80" r="6" fill="#ffffff" />
+          )}
+        </svg>
+
+        {/* ETIQUETAS DE INDICACIÓN DE PIEZAS */}
+        <div style={{ display: "flex", gap: "8px", marginTop: "6px", fontSize: "10px", fontWeight: "bold" }}>
+          <span style={{ color: cM1 }}>M1 Cúpula</span>
+          <span style={{ color: cM2 }}>M2 Motor</span>
+          <span style={{ color: cM3 }}>M3 Alas</span>
+          <span style={{ color: cM4 }}>M4 Reactor</span>
+        </div>
       </div>
     </div>
   );
 }
-
-
 // ==========================================
 // 🤖 EDUBOT (COPILOTO ROBOT)
 // ==========================================
@@ -1774,6 +1844,8 @@ export default function App() {
                 gear={gear}
                 onOpenCierre={() => setFaseGlobal("cierre")}
                 allCompleted={allCompleted}
+                m4StepIndex={m4StepIndex}
+                misionActual={misionActual}
               />
             );
           })()}
@@ -2112,14 +2184,56 @@ export default function App() {
                         {/* 🎮 CONTROLES TÁCTILES POR MISIÓN (M1 Y M4) */}
                         {misionActual === "m1" && <M1WaterTankHUD equation={dataM1.equation} />}
 
-                        <div style={styles.consignaBox}>
-                          <span style={styles.labelConsigna}>🚰 TU DESAFÍO EN PANTALLA:</span>
-                          <div style={styles.ecuacionReal}>
-                            {misionActual === "m1" && dataM1.equation}
-                            {misionActual === "m2" && dataM2.equation}
-                            {misionActual === "m3" && dataM3.equation}
+                        {misionActual === "m1" && (
+                          <div style={styles.consignaBox}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                              <span style={{ fontSize: "22px" }}>🚰</span>
+                              <span style={{ fontSize: "14px", fontWeight: "bold", color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                Escena 1: Suministro y Reserva de Agua (Misma Base)
+                              </span>
+                            </div>
+                            <p style={{ fontSize: "13px", color: "#cbd5e1", margin: "0 0 10px 0", lineHeight: "1.4" }}>
+                              Se combina el nivel de agua de dos contenedores que comparten la misma división de base. Unificá el total de agua:
+                            </p>
+                            <div style={styles.ecuacionReal}>
+                              {dataM1.equation}
+                            </div>
                           </div>
-                        </div>
+                        )}
+
+                        {misionActual === "m2" && (
+                          <div style={styles.consignaBox}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                              <span style={{ fontSize: "22px" }}>⛽</span>
+                              <span style={{ fontSize: "14px", fontWeight: "bold", color: "#eab308", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                Escena 2: Reabastecimiento de Combustible (Múltiplos de Base)
+                              </span>
+                            </div>
+                            <p style={{ fontSize: "13px", color: "#cbd5e1", margin: "0 0 10px 0", lineHeight: "1.4" }}>
+                              En la estación del refugio se necesita volcar dos tambores de nafta en el depósito principal. Un tambor tiene el doble de divisiones que el otro. Calculá la carga total unificando bases:
+                            </p>
+                            <div style={styles.ecuacionReal}>
+                              {dataM2.equation}
+                            </div>
+                          </div>
+                        )}
+
+                        {misionActual === "m3" && (
+                          <div style={styles.consignaBox}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                              <span style={{ fontSize: "22px" }}>📦</span>
+                              <span style={{ fontSize: "14px", fontWeight: "bold", color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                Escena 3: Distribución y Simplificación de Víveres
+                              </span>
+                            </div>
+                            <p style={{ fontSize: "13px", color: "#cbd5e1", margin: "0 0 10px 0", lineHeight: "1.4" }}>
+                              Se arman paquetes de alimentos uniendo porciones de dos depósitos con bases diferentes. Sumá las porciones y simplificá el resultado a su mínima expresión:
+                            </p>
+                            <div style={styles.ecuacionReal}>
+                              {dataM3.equation}
+                            </div>
+                          </div>
+                        )}
 
                         <div style={styles.opcionesGrid6}>
                           {misionActual === "m1" && dataM1.options.map((opt) => {
@@ -2980,23 +3094,23 @@ const styles = {
     textAlign: "left"
   },
   btnSimulacro: {
-    padding: "12px",
-    borderRadius: "8px",
+    padding: "16px 22px",
+    borderRadius: "10px",
     border: "none",
     backgroundColor: "#0284c7",
     color: "#ffffff",
     fontWeight: "bold",
-    fontSize: "13px",
+    fontSize: "16px",
     cursor: "pointer"
   },
   btnDirecto: {
-    padding: "10px",
-    borderRadius: "8px",
+    padding: "14px 20px",
+    borderRadius: "10px",
     border: "1px solid #334155",
     backgroundColor: "transparent",
-    color: "#94a3b8",
+    color: "#cbd5e1",
     fontWeight: "bold",
-    fontSize: "12px",
+    fontSize: "15px",
     cursor: "pointer"
   },
   bannerDemo: {
@@ -3216,13 +3330,13 @@ const styles = {
     fontFamily: "inherit"
   },
   btnFormSubmit: {
-    padding: "12px",
+    padding: "16px 24px",
     backgroundColor: "#10b981",
     color: "#ffffff",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "10px",
     fontWeight: "bold",
-    fontSize: "13px",
+    fontSize: "18px",
     cursor: "pointer",
     marginTop: "6px"
   },
