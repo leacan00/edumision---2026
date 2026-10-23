@@ -822,7 +822,11 @@ export default function App() {
   }, []);
 
   const [xpTotal, setXpTotal] = useState(0);
-  const [misionesCompletadas, setMisionesCompletadas] = useState([]);
+  const [misionesCompletadas,
+          misionesDiamante, setMisionesCompletadas] = useState([]);
+  const [misionesDiamante, setMisionesDiamante] = useState([]);
+  const [erroresIntentoActual, setErroresIntentoActual] = useState(0);
+  const [eduBotAlertModal, setEduBotAlertModal] = useState(null);
   const [misionesConError, setMisionesConError] = useState([]);
   const [badgeEarned, setBadgeEarned] = useState(false);
   const [habilidadDesbloqueada, setHabilidadDesbloqueada] = useState(null);
@@ -915,6 +919,8 @@ export default function App() {
         const data = snap.data();
         const loadedXp = data.xpTotal || 0;
         const completadas = data.misionesCompletadas || [];
+        const diamantes = data.misionesDiamante || [];
+        setMisionesDiamante(diamantes);
         const conError = data.misionesConError || [];
         const badge = !!data.badgeEarned;
 
@@ -998,6 +1004,7 @@ export default function App() {
         await updateDoc(doc(db, "alumnos", alumnoId), {
           xpTotal,
           misionesCompletadas,
+          misionesDiamante,
           misionesConError,
           badgeEarned,
           statsPorMision,
@@ -1014,7 +1021,8 @@ export default function App() {
     };
 
     syncProgreso();
-  }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas, misionesConError, badgeEarned, statsPorMision, tiempoSesionTotalSegundos]);
+  }, [perfilCargado, alumnoId, xpTotal, misionesCompletadas,
+          misionesDiamante, misionesConError, badgeEarned, statsPorMision, tiempoSesionTotalSegundos]);
 
   // 📡 1. Escuchar cambios en alumnos/{alumnoId} para mantener docenteId actualizado
   useEffect(() => {
@@ -1121,6 +1129,8 @@ export default function App() {
 
   // Re-generación de Datos
   const handleGenerarNuevas = () => {
+    setErroresIntentoActual(0);
+    setFaseMision("desafio");
     setOpcionSeleccionada(null);
     setM2FallingId(null);
     setM2WobbleId(null);
@@ -1156,7 +1166,8 @@ export default function App() {
     });
 
     if (!misionesCompletadas.includes(mId)) {
-      const nuevasCompletadas = [...misionesCompletadas, mId];
+      const nuevasCompletadas = [...misionesCompletadas,
+          misionesDiamante, mId];
       setMisionesCompletadas(nuevasCompletadas);
 
       let sumaXP = 0;
@@ -1270,6 +1281,30 @@ export default function App() {
       setCopilotMood("shocked");
       setCopilotMsg("⚠️ Desvío detectado. Revisá tu cálculo con lápiz y papel.");
       setErrorWarning("Sin calculadoras. Usá hoja y lápiz para verificar los denominadores.");
+
+      setErroresIntentoActual((prevErr) => {
+        const nextErr = prevErr + 1;
+        if (nextErr === 2) {
+          setEduBotAlertModal({
+            title: "🤖 EduBot · Intervención Táctica (2° Desvío)",
+            text: "Revisá en tu cuaderno con lápiz y papel y consultá con EduBot o tu profe. Recordá que para futuras misiones no obtenés todas las mejoras y habilidades si hay errores en la resolución.",
+            icon: "⚠️"
+          });
+        } else if (nextErr === 4) {
+          setEduBotAlertModal({
+            title: "🤖 EduBot · Recordatorio de Registro (4° Desvío)",
+            text: "Recordá que los errores no restan XP, pero este registro de intentos queda visible para tus docentes y padres.",
+            icon: "📋"
+          });
+        } else if (nextErr >= 6) {
+          setEduBotAlertModal({
+            title: "🤖 EduBot · Orientación Reflexiva (6° Desvío)",
+            text: "No te ayuda seguir intentando a ciegas sin haber comprendido la misión. Consultá con tu profe o revisá el Apoyo Matemático.",
+            icon: "💡"
+          });
+        }
+        return nextErr;
+      });
       
       if (misionActual === "m2" && !opt.correct) {
         setM2WobbleId(opt.id);
@@ -1696,19 +1731,23 @@ export default function App() {
                 let statusLabel = "🔒 BLOQUEADA";
                 let statusColor = "#64748b";
 
-                if (esCompletada) {
+                const esDiamante = misionesDiamante.includes(m.id);
+
+                if (esDiamante) {
+                  borderStyle = "2px solid #00f3ff";
+                  bgStyle = "rgba(0, 243, 255, 0.2)";
+                  statusLabel = "💎 DIAMANTE (Sin Errores)";
+                  statusColor = "#00f3ff";
+                } else if (esCompletada) {
                   borderStyle = "2px solid #10b981";
                   bgStyle = "rgba(16, 185, 129, 0.2)";
-                  statusLabel = "✔ COMPLETADA";
+                  statusLabel = "🟢 COMPLETADA";
                   statusColor = "#4ade80";
-                } else if (esActiva) {
-                  borderStyle = "2px solid #38bdf8";
-                  bgStyle = "rgba(56, 189, 248, 0.2)";
-                  statusLabel = "⚡ EN CURSO";
-                  statusColor = "#38bdf8";
-                } else if (m.id === "m1" || misionesCompletadas.includes("m1") && m.id === "m2" || misionesCompletadas.includes("m2") && m.id === "m3" || misionesCompletadas.includes("m3") && m.id === "m4") {
-                  statusLabel = "🚀 DISPONIBLE";
-                  statusColor = "#fef08a";
+                } else if (esActiva || m.id === "m1" || (misionesCompletadas.includes("m1") && m.id === "m2") || (misionesCompletadas.includes("m2") && m.id === "m3") || (misionesCompletadas.includes("m3") && m.id === "m4")) {
+                  borderStyle = "2px solid #f87171";
+                  bgStyle = "rgba(248, 113, 113, 0.15)";
+                  statusLabel = "🔴 HABILITADA (Pendiente)";
+                  statusColor = "#f87171";
                 }
 
                 return (
@@ -2503,7 +2542,7 @@ export default function App() {
                           )}
 
                           <button onClick={handleGenerarNuevas} style={styles.btnRepetirNuevosDatos}>
-                            🔄 Generar nuevas operaciones para re-entrenar
+                            🚀 Reintentar para desbloquear mejoras y habilidades
                           </button>
                         </div>
                       </div>
@@ -2675,6 +2714,36 @@ export default function App() {
       )}
 
       {/* MODAL ANDAMIAJE METACOGNITIVO: ¿EN QUÉ ME ESTOY EQUIVOCANDO? */}
+            {/* 🤖 MODAL DE INTERVENCIÓN Y ALERTAS DE EDUBOT (SIN TEMPORIZADOR, CON BOTÓN ENTENDIDO) */}
+      {eduBotAlertModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalCardWide}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1e293b", paddingBottom: "10px", marginBottom: "14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "28px" }}>{eduBotAlertModal.icon || "🤖"}</span>
+                <h3 style={{ margin: 0, color: "#38bdf8", fontSize: "16px", fontWeight: "bold" }}>
+                  {eduBotAlertModal.title}
+                </h3>
+              </div>
+              <button onClick={() => setEduBotAlertModal(null)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <div style={{ backgroundColor: "#02040e", border: "1px solid #38bdf8", borderRadius: "10px", padding: "16px", marginBottom: "16px" }}>
+              <p style={{ margin: 0, fontSize: "14px", color: "#f8fafc", lineHeight: "1.6" }}>
+                {eduBotAlertModal.text}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setEduBotAlertModal(null)}
+              style={styles.btnFormSubmit}
+            >
+              🚀 ¡ENTENDIDO, CONTINUAR!
+            </button>
+          </div>
+        </div>
+      )}
+
       {showQueMeEquivoqueModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalCardWide}>
