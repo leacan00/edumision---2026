@@ -185,8 +185,9 @@ const styles = {
   },
   dashboardGrid: {
     display: "grid",
-    gridTemplateColumns: "1.4fr 1fr",
-    gap: "20px"
+    gridTemplateColumns: "2fr 1fr",
+    gap: "20px",
+    alignItems: "start"
   },
   dashboardHeader: {
     display: "flex",
@@ -545,8 +546,10 @@ function renderMissionCell(student, mKey) {
   let borderColor = "#1e293b";
   let textColor = "#cbd5e1";
 
-  if (isDiamante) {
-    bgColor = "rgba(0, 243, 255, 0.18)";
+  const isSinError = (isCompleted && errors === 0) || isDiamante;
+
+  if (isSinError) {
+    bgColor = "rgba(0, 243, 255, 0.2)";
     borderColor = "#00f3ff";
     textColor = "#00f3ff";
   } else if (isCompleted) {
@@ -1376,28 +1379,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* 1.d FIX: CONTROLES DE TRANSMISIÓN GRUPAL EN TIEMPO REAL */}
-          <div style={styles.dashboardTeacherControlsCard}>
-            <h3 style={{ ...styles.cardSectionTitle, color: "#c084fc", margin: 0 }}>
-              📢 Enviar Consejos Colectivos a las Cabinas en Vivo
-            </h3>
-            <p style={{ ...styles.instructions, margin: 0 }}>
-              Escribí un aviso o sugerencia de aula. Aparecerá inmediatamente en las pantallas de todos los estudiantes asignados a tu cuenta.
-            </p>
-            <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-              <input
-                type="text"
-                value={inputMsg}
-                onChange={(e) => setInputMsg(e.target.value)}
-                placeholder="Ej: ¡Tripulantes, recuerden usar lápiz y papel antes de responder!"
-                style={styles.teacherDashboardInput}
-              />
-              <button onClick={handleSendMessage} style={styles.teacherDashboardSendBtn}>
-                Transmitir Consejo
-              </button>
-            </div>
-          </div>
-
           <div style={styles.dashboardGrid}>
             <div style={styles.leftColumn}>
               <div style={styles.dashboardCard}>
@@ -1515,8 +1496,30 @@ export default function App() {
               </div>
             </div>
 
-            {/* COLUMNA DERECHA: DIAGNÓSTICO COLECTIVO DEL SISTEMA EXPERTO */}
-            <div style={styles.rightColumn}>
+            {/* COLUMNA DERECHA: COMUNICACIÓN Y DIAGNÓSTICO COLECTIVO (1/3 ANCHO) */}
+            <div style={{ ...styles.rightColumn, display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* CONTROLES DE TRANSMISIÓN GRUPAL EN TIEMPO REAL CON TEXTO MÁS GRANDE */}
+              <div style={styles.dashboardTeacherControlsCard}>
+                <h3 style={{ ...styles.cardSectionTitle, color: "#c084fc", fontSize: "16px", margin: "0 0 4px 0", fontWeight: "bold" }}>
+                  📢 Comunicación con el Grupo (En Vivo)
+                </h3>
+                <p style={{ ...styles.instructions, fontSize: "13px", color: "#cbd5e1", margin: "0 0 10px 0", lineHeight: "1.4" }}>
+                  Escribí un consejo o sugerencia. Aparecerá inmediatamente en las pantallas de todos tus alumnos.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <input
+                    type="text"
+                    value={inputMsg}
+                    onChange={(e) => setInputMsg(e.target.value)}
+                    placeholder="Ej: ¡Tripulantes, recuerden usar lápiz y papel antes de responder!"
+                    style={styles.teacherDashboardInput}
+                  />
+                  <button onClick={handleSendMessage} style={styles.teacherDashboardSendBtn}>
+                    📡 Transmitir Consejo a las Cabinas
+                  </button>
+                </div>
+              </div>
+
               <div style={styles.dashboardCard}>
                 <h3 style={styles.cardSectionTitle}>Diagnóstico Colectivo (Sistema Experto)</h3>
                 <p style={styles.instructions}>
