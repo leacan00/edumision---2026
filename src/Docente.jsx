@@ -80,10 +80,10 @@ const styles = {
   btnPedagogicalPill: {
     padding: "6px 12px",
     borderRadius: "6px",
-    border: "1px solid #38bdf8",
-    backgroundColor: "rgba(56, 189, 248, 0.12)",
-    color: "#38bdf8",
-    fontSize: "12px",
+    border: "1px solid #a855f7",
+    backgroundColor: "rgba(168, 85, 247, 0.2)",
+    color: "#d8b4fe",
+    fontSize: "13px",
     fontWeight: "bold",
     cursor: "pointer"
   },
@@ -115,8 +115,8 @@ const styles = {
     gap: "8px"
   },
   btnTableAction: {
-    padding: "6px 12px",
-    fontSize: "11px",
+    padding: "8px 14px",
+    fontSize: "13px",
     borderRadius: "6px",
     border: "none",
     backgroundColor: "#0284c7",
@@ -163,7 +163,7 @@ const styles = {
     margin: "30px auto"
   },
   cardSectionTitle: {
-    fontSize: "13px",
+    fontSize: "16px",
     margin: "0 0 12px 0",
     color: "#38bdf8",
     textTransform: "uppercase"
@@ -197,7 +197,7 @@ const styles = {
     marginBottom: "16px"
   },
   dashboardSubtitle: {
-    fontSize: "12px",
+    fontSize: "14px",
     margin: "4px 0 0 0",
     color: "#64748b"
   },
@@ -212,7 +212,7 @@ const styles = {
     gap: "10px"
   },
   dashboardTitle: {
-    fontSize: "20px",
+    fontSize: "25px",
     margin: 0,
     color: "#38bdf8",
     fontWeight: "bold"
@@ -257,7 +257,7 @@ const styles = {
     fontSize: "14px"
   },
   instructions: {
-    fontSize: "12px",
+    fontSize: "14px",
     color: "#94a3b8",
     lineHeight: "1.4",
     marginBottom: "12px"
@@ -275,13 +275,13 @@ const styles = {
     marginBottom: "20px"
   },
   kpiLabel: {
-    fontSize: "10px",
+    fontSize: "12px",
     color: "#cbd5e1",
     margin: 0,
     fontWeight: "bold"
   },
   kpiSub: {
-    fontSize: "10px",
+    fontSize: "12px",
     color: "#94a3b8",
     fontWeight: "600"
   },
@@ -365,8 +365,8 @@ const styles = {
     textAlign: "left"
   },
   td: {
-    padding: "8px",
-    fontSize: "12px"
+    padding: "12px 8px",
+    fontSize: "14px"
   },
   teacherBadge: {
     padding: "4px 10px",
@@ -379,26 +379,26 @@ const styles = {
   },
   teacherDashboardInput: {
     flex: 1,
-    padding: "10px 14px",
+    padding: "12px 16px",
     backgroundColor: "#02040e",
     border: "1px solid #334155",
     borderRadius: "6px",
     color: "#cbd5e1",
-    fontSize: "13px"
+    fontSize: "14px"
   },
   teacherDashboardSendBtn: {
     backgroundColor: "#8b5cf6",
     color: "#ffffff",
     border: "none",
-    padding: "10px 20px",
+    padding: "12px 22px",
     borderRadius: "6px",
     fontWeight: "bold",
-    fontSize: "12px",
+    fontSize: "14px",
     cursor: "pointer"
   },
   th: {
-    padding: "8px",
-    fontSize: "10px",
+    padding: "10px 8px",
+    fontSize: "13px",
     color: "#64748b",
     textTransform: "uppercase"
   },
@@ -546,27 +546,27 @@ function renderMissionCell(student, mKey) {
   let textColor = "#cbd5e1";
 
   if (isDiamante) {
-    bgColor = "rgba(0, 243, 255, 0.15)";
+    bgColor = "rgba(0, 243, 255, 0.18)";
     borderColor = "#00f3ff";
     textColor = "#00f3ff";
   } else if (isCompleted) {
-    bgColor = "rgba(16, 185, 129, 0.15)";
+    bgColor = "rgba(16, 185, 129, 0.18)";
     borderColor = "#10b981";
     textColor = "#4ade80";
   } else if (hasActivity || mKey === "m1" || (student?.misionesCompletadas || []).includes("m1")) {
-    bgColor = "rgba(248, 113, 113, 0.15)";
+    bgColor = "rgba(248, 113, 113, 0.18)";
     borderColor = "#f87171";
     textColor = "#f87171";
   }
 
   if (!hasActivity) {
-    return <span style={{ padding: "4px 8px", borderRadius: "4px", border: "1px dashed #1e293b", color: "#475569", fontSize: "11px" }}>—</span>;
+    return <span style={{ padding: "6px 10px", borderRadius: "6px", border: "1px dashed #64748b", color: "#64748b", fontSize: "13px" }}>—</span>;
   }
 
   return (
-    <div style={{ padding: "4px 8px", borderRadius: "6px", border: `1px solid ${borderColor}`, backgroundColor: bgColor, color: textColor, display: "inline-flex", gap: "6px", fontSize: "11px", fontWeight: "bold" }}>
+    <div style={{ padding: "6px 10px", borderRadius: "6px", border: `1px solid ${borderColor}`, backgroundColor: bgColor, color: textColor, display: "inline-flex", gap: "8px", fontSize: "13px", fontWeight: "bold" }}>
       <span>💡 {helps}</span>
-      <span style={{ color: "#fb923c" }}>✖ {errors}</span>
+      <span style={{ color: "#f87171" }}>✖ {errors}</span>
     </div>
   );
 }
@@ -1199,7 +1199,8 @@ export default function App() {
   };
 
   // 1.c FIX: Filtrado rápido de estudiantes para visualización inmediata
-  const filteredStudents = students.filter((s) => {
+  const filteredStudents = students; // Siempre listado completo
+  const _dummyFilter = students.filter((s) => {
     const len = (s.misionesCompletadas || []).length;
     if (tableFilter === "COMPLETOS") return len === 4;
     if (tableFilter === "EN_CURSO") return len > 0 && len < 4;
@@ -1401,34 +1402,42 @@ export default function App() {
             <div style={styles.leftColumn}>
               <div style={styles.dashboardCard}>
                 
-                {/* 1.c FIX: FILTROS DE VISUALIZACIÓN RÁPIDA DE ALUMNOS */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
-                  <h3 style={{ ...styles.cardSectionTitle, margin: 0 }}>Listado General de Alumnos ({filteredStudents.length})</h3>
-                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                    {[
-                      { key: "TODOS", label: "Todos" },
-                      { key: "COMPLETOS", label: "🟢 4 Misiones" },
-                      { key: "EN_CURSO", label: "⚡ En Curso" },
-                      { key: "DESVIOS", label: "⚠️ Con Desvíos" },
-                      { key: "SIN_INICIAR", label: "⏳ Sin Iniciar" }
-                    ].map((f) => (
-                      <button
-                        key={f.key}
-                        onClick={() => setTipoFilter(f.key)}
-                        style={{
-                          padding: "3px 8px",
-                          borderRadius: "4px",
-                          border: tableFilter === f.key ? "1px solid #38bdf8" : "1px solid #334155",
-                          backgroundColor: tableFilter === f.key ? "rgba(56, 189, 248, 0.2)" : "#020617",
-                          color: tableFilter === f.key ? "#38bdf8" : "#94a3b8",
-                          fontSize: "10px",
-                          fontWeight: "bold",
-                          cursor: "pointer"
-                        }}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
+                {/* LISTADO COMPLETO DE ALUMNOS ASOCIADOS CON REFERENCIA DE COLORES Y SÍMBOLOS */}
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <h3 style={{ ...styles.cardSectionTitle, fontSize: "18px", margin: 0, color: "#38bdf8" }}>
+                      📋 Listado Completo de Alumnos Asociados ({students.length})
+                    </h3>
+                    <div style={{ fontSize: "13px", fontWeight: "bold", color: "#f8fafc", backgroundColor: "#0f172a", padding: "6px 12px", borderRadius: "6px", border: "1px solid #334155" }}>
+                      💡 = Pedidos de ayuda &nbsp; | &nbsp; <span style={{ color: "#f87171" }}>✖ = Errores cometidos</span>
+                    </div>
+                  </div>
+
+                  {/* CINTA DE REFERENCIA DE BORDES Y ESTADOS */}
+                  <div style={{
+                    display: "flex",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    backgroundColor: "#020617",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid #1e293b",
+                    fontSize: "13px"
+                  }}>
+                    <span style={{ fontWeight: "bold", color: "#94a3b8" }}>Referencia de Bordes:</span>
+                    <span style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #00f3ff", backgroundColor: "rgba(0, 243, 255, 0.15)", color: "#00f3ff", fontWeight: "bold" }}>
+                      💎 Celeste: Diamante (Sin errores)
+                    </span>
+                    <span style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #10b981", backgroundColor: "rgba(16, 185, 129, 0.15)", color: "#4ade80", fontWeight: "bold" }}>
+                      🟢 Verde: Completada con éxito
+                    </span>
+                    <span style={{ padding: "4px 10px", borderRadius: "6px", border: "1px solid #f87171", backgroundColor: "rgba(248, 113, 113, 0.15)", color: "#f87171", fontWeight: "bold" }}>
+                      🔴 Rojo: En curso / Con desvíos
+                    </span>
+                    <span style={{ padding: "4px 10px", borderRadius: "6px", border: "1px dashed #64748b", backgroundColor: "rgba(100, 116, 139, 0.15)", color: "#94a3b8" }}>
+                      ⚪ Gris: Pendiente / Sin iniciar
+                    </span>
                   </div>
                 </div>
 
@@ -1475,19 +1484,19 @@ export default function App() {
                         const completadasCount = (student.misionesCompletadas || []).length;
                         return (
                           <tr key={student.id} style={styles.tr}>
-                            <td style={{ ...styles.td, fontWeight: "bold", color: "#ffffff" }}>
+                            <td style={{ ...styles.td, fontWeight: "bold", color: "#ffffff", fontSize: "15px" }}>
                               {student.name || student.nickname || "Alumno"} <br />
-                              <span style={{ fontSize: "10px", color: "#94a3b8" }}>{student.escuela || "Escuela"}</span>
+                              <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "normal" }}>{student.escuela || "Escuela"}</span>
                             </td>
                             <td style={styles.td}>{renderMissionCell(student, "m1")}</td>
                             <td style={styles.td}>{renderMissionCell(student, "m2")}</td>
                             <td style={styles.td}>{renderMissionCell(student, "m3")}</td>
                             <td style={styles.td}>{renderMissionCell(student, "m4")}</td>
                             <td style={styles.td}>
-                              <div style={{ fontSize: "11px", fontWeight: "bold", color: "#38bdf8" }}>
+                              <div style={{ fontSize: "13px", fontWeight: "bold", color: "#38bdf8" }}>
                                 {student.xpTotal || student.xp || 0} XP
                               </div>
-                              <div style={{ fontSize: "10px", color: completadasCount === 4 ? "#4ade80" : "#94a3b8" }}>
+                              <div style={{ fontSize: "12px", color: completadasCount === 4 ? "#4ade80" : "#94a3b8" }}>
                                 {completadasCount === 4 ? "🏆 Insignia" : `${completadasCount}/4 Logradas`}
                               </div>
                             </td>
