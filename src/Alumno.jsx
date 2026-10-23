@@ -257,7 +257,7 @@ const getEquipamientoEvolutivo = (completadasCount) => {
     return {
       avatarIcon: "👨‍🚀🚀",
       rango: "Ingeniero/a de Fusión Estelar",
-      casco: "Equipo Lunar Completo & Visor Cuántico 🔮",
+      casco: "Traje Lunar Completo 🔮",
       naveMejora: "Reactor de Fusión Estelar Activo",
       badgeColor: "#a855f7"
     };
@@ -717,8 +717,7 @@ function NaveSideBySideSvg({ misionesCompletadas, misionesDiamante, perfilAlumno
             </span>
           </div>
 
-          <div style={{ fontSize: "14px", color: "#cbd5e1", marginTop: "6px", lineHeight: "1.5" }}>
-            🪖 <strong>Equipo:</strong> {gear.casco} <br />
+          <div style={{ fontSize: "14px", color: "#cbd5e1", marginTop: "6px" }}>
             🏫 <strong>Escuela:</strong> {perfilAlumno.escuela} ({perfilAlumno.curso})
           </div>
 
@@ -1129,7 +1128,7 @@ export default function App() {
         else if (len >= 4) setTituloExplorador("Explorador/a de Fusión Estelar 🚀");
 
         if (badge) {
-          setHabilidadDesbloqueada("Visor de Fusión Cuántica 🔮");
+          setHabilidadDesbloqueada("Módulo de Fusión Estelar 🔮");
         }
 
         setAlumnoId(aid);
@@ -1376,7 +1375,7 @@ export default function App() {
       if (nuevasCompletadas.length === 4) {
         setTituloExplorador("Explorador/a de Fusión Estelar 🚀");
         setBadgeEarned(true);
-        setHabilidadDesbloqueada("Visor de Fusión Cuántica 🔮");
+        setHabilidadDesbloqueada("Módulo de Fusión Estelar 🔮");
         addBitacora("🔮 ¡NUEVA HABILIDAD DESBLOQUEADA: Visor de Fusión Cuántica habilitado para futuras misiones!");
       }
     }
@@ -1865,23 +1864,7 @@ export default function App() {
               <div style={{ ...styles.progressBarFill, width: `${Math.min(100, (xpTotal / 750) * 100)}%` }} />
             </div>
 
-            {/* VISTA DE EQUIPAMIENTO EVOLUTIVO DESBLOQUEADO */}
-            <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #1e293b", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-              {(() => {
-                const gear = getEquipamientoEvolutivo(misionesCompletadas.length);
-                return (
-                  <>
-                    <div style={{ fontSize: "11px", color: "#cbd5e1", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span>🚀 NAVE Y MEJORAS ACTIVAS:</span>
-                      <span style={{ color: "#38bdf8", fontStyle: "italic" }}>{gear.naveMejora}</span>
-                    </div>
-                    <div style={{ fontSize: "11px", color: gear.badgeColor, fontWeight: "bold" }}>
-                      🪖 EQUIPO: {gear.casco}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
+
           </div>
 
           {/* ÁRBOL DE MISIONES (DONDE SE NOTEN LAS MISIONES COMPLETADAS) */}
