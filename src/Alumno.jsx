@@ -1569,21 +1569,25 @@ export default function App() {
 
             <div style={styles.rulesList}>
               <div style={styles.ruleItem}>
-                <span style={{ fontSize: "22px" }}>📝</span>
+                <span style={{ fontSize: "22px" }}>✏️</span>
                 <div>
-                  <strong style={{ color: "#38bdf8" }}>Lápiz y Papel:</strong> Hacé las cuentas a mano en tu cuaderno antes de responder.
-                </div>
-              </div>
-              <div style={styles.ruleItem}>
-                <span style={{ fontSize: "22px" }}>🚫</span>
-                <div>
-                  <strong style={{ color: "#f87171" }}>Sin Calculadoras:</strong> Ejercitá tu propio razonamiento matemático.
+                  <strong style={{ color: "#38bdf8" }}>Lápiz y papel, sin calculadora:</strong> Hacé las cuentas a mano en tu cuaderno antes de responder.
                 </div>
               </div>
               <div style={styles.ruleItem}>
                 <span style={{ fontSize: "22px" }}>⚡</span>
                 <div>
-                  <strong style={{ color: "#4ade80" }}>XP Resiliente:</strong> Los errores NO te restan puntos. Cada reintento suma experiencia.
+                  <strong style={{ color: "#4ade80" }}>No hay notas:</strong> El XP no se resta por intentos fallidos, ¡solo suma!
+                </div>
+              </div>
+              <div style={{
+                ...styles.ruleItem,
+                backgroundColor: "rgba(250, 204, 21, 0.12)",
+                border: "1px solid #facc15"
+              }}>
+                <span style={{ fontSize: "22px" }}>📱</span>
+                <div>
+                  <strong style={{ color: "#facc15" }}>Modo Horizontal:</strong> En las misiones podés <strong>poner el celular en horizontal</strong> (rotar pantalla) para desplegar mejor las opciones.
                 </div>
               </div>
             </div>
