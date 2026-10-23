@@ -534,6 +534,7 @@ function slug(text) {
 function renderMissionCell(student, mKey) {
   const mData = student?.missions?.[mKey] || {};
   const stats = student?.statsPorMision?.[mKey] || {};
+  const isDiamante = (student?.misionesDiamante || []).includes(mKey);
   const isCompleted = (student?.misionesCompletadas || []).includes(mKey);
   const helps = mData.helps || stats.ayudas || 0;
   const errors = mData.errors || stats.errores || 0;
@@ -544,14 +545,18 @@ function renderMissionCell(student, mKey) {
   let borderColor = "#1e293b";
   let textColor = "#cbd5e1";
 
-  if (isCompleted) {
+  if (isDiamante) {
+    bgColor = "rgba(0, 243, 255, 0.15)";
+    borderColor = "#00f3ff";
+    textColor = "#00f3ff";
+  } else if (isCompleted) {
     bgColor = "rgba(16, 185, 129, 0.15)";
     borderColor = "#10b981";
     textColor = "#4ade80";
-  } else if (hasActivity) {
-    bgColor = "rgba(251, 146, 60, 0.15)";
-    borderColor = "#fb923c";
-    textColor = "#fb923c";
+  } else if (hasActivity || mKey === "m1" || (student?.misionesCompletadas || []).includes("m1")) {
+    bgColor = "rgba(248, 113, 113, 0.15)";
+    borderColor = "#f87171";
+    textColor = "#f87171";
   }
 
   if (!hasActivity) {
@@ -721,13 +726,14 @@ function DrawerWithSendButton({ student, onClose }) {
             </h4>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {misionesList.map((m) => {
-                const isDone = m.status === "completado";
-                const isInProgress = m.status === "en_curso";
+                const isDiamante = (student?.misionesDiamante || []).includes(m.key);
+                const isDone = m.status === "completado" || (student?.misionesCompletadas || []).includes(m.key);
+                const isInProgress = m.status === "en_curso" || m.key === "m1" || (student?.misionesCompletadas || []).includes("m1");
 
-                const statusLabel = isDone ? "✔ Completada" : isInProgress ? "⚡ En curso" : "⏳ Sin iniciar";
-                const statusBg = isDone ? "rgba(16, 185, 129, 0.15)" : isInProgress ? "rgba(251, 146, 60, 0.15)" : "rgba(100, 116, 139, 0.15)";
-                const statusColor = isDone ? "#4ade80" : isInProgress ? "#fb923c" : "#64748b";
-                const statusBorder = isDone ? "#10b981" : isInProgress ? "#fb923c" : "#334155";
+                const statusLabel = isDiamante ? "💎 Diamante (0 Errores)" : isDone ? "🟢 Completada" : isInProgress ? "🔴 En curso (Pendiente)" : "⏳ Sin iniciar";
+                const statusBg = isDiamante ? "rgba(0, 243, 255, 0.15)" : isDone ? "rgba(16, 185, 129, 0.15)" : isInProgress ? "rgba(248, 113, 113, 0.15)" : "rgba(100, 116, 139, 0.15)";
+                const statusColor = isDiamante ? "#00f3ff" : isDone ? "#4ade80" : isInProgress ? "#f87171" : "#64748b";
+                const statusBorder = isDiamante ? "#00f3ff" : isDone ? "#10b981" : isInProgress ? "#f87171" : "#334155";
 
                 const errorTranslated = m.lastErrorCode ? translateDesvio(m.lastErrorCode) : (isDone ? "Sin desvíos actuales" : "Sin registro");
 
