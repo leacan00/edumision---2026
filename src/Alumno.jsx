@@ -822,8 +822,7 @@ export default function App() {
   }, []);
 
   const [xpTotal, setXpTotal] = useState(0);
-  const [misionesCompletadas,
-          misionesDiamante, setMisionesCompletadas] = useState([]);
+  const [misionesCompletadas, setMisionesCompletadas] = useState([]);
   const [misionesDiamante, setMisionesDiamante] = useState([]);
   const [erroresIntentoActual, setErroresIntentoActual] = useState(0);
   const [eduBotAlertModal, setEduBotAlertModal] = useState(null);
@@ -1100,6 +1099,7 @@ export default function App() {
     setTransitioning(true);
     setTimeout(() => {
       setMisionActual(mId);
+      setErroresIntentoActual(0);
       setFaseMision("inicio");
       setPasoDemo(1);
       setM4StepIndex(1);
@@ -1165,9 +1165,13 @@ export default function App() {
       };
     });
 
+    if (erroresIntentoActual === 0 && !misionesDiamante.includes(mId)) {
+      setMisionesDiamante((prev) => [...prev, mId]);
+      addBitacora("💎 ¡LOGRO DIAMANTE EN " + mId.toUpperCase() + "! Completado sin errores en esta corrida.", false, null);
+    }
+
     if (!misionesCompletadas.includes(mId)) {
-      const nuevasCompletadas = [...misionesCompletadas,
-          misionesDiamante, mId];
+      const nuevasCompletadas = [...misionesCompletadas, mId];
       setMisionesCompletadas(nuevasCompletadas);
 
       let sumaXP = 0;
