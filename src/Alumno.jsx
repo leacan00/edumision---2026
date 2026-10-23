@@ -2768,8 +2768,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* COLUMNA DERECHA: EDUBOT - AYUDAS Y BITÁCORA */}
+            {/* COLUMNA DERECHA: EDUBOT, MENSAJE AL GRUPO Y BITÁCORA */}
             <div style={styles.rightSidebarColumn}>
+              {/* 1. EDUBOT COPILOTO */}
               <EduBotCopilot
                 mood={copilotMood}
                 message={copilotMsg}
@@ -2778,6 +2779,20 @@ export default function App() {
                 errorWarning={errorWarning}
               />
 
+              {/* 2. MENSAJE AL GRUPO (TRANSMISIÓN DE LA PROFE) */}
+              <div style={styles.fullWidthTeacherCard}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                  <span style={{ fontSize: "20px" }}>📢</span>
+                  <span style={{ fontSize: "13px", fontWeight: "bold", color: "#c084fc", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Transmisión de tu Profe en Vivo:
+                  </span>
+                </div>
+                <p style={{ fontSize: "14px", color: "#f1f5f9", margin: 0, fontStyle: "italic", lineHeight: "1.5" }}>
+                  "{teacherMessage}"
+                </p>
+              </div>
+
+              {/* 3. BITÁCORA XAPI */}
               <div style={styles.bitacoraBox}>
                 <div style={styles.bitacoraTitle}>📋 BITÁCORA DE NAVEGACIÓN Y REGISTRO XAPI</div>
                 <div style={styles.bitacoraList}>
@@ -2790,19 +2805,6 @@ export default function App() {
               </div>
             </div>
 
-          </div>
-
-          {/* DEBAJO DE TODO: MENSAJE DE DOCENTE */}
-          <div style={styles.fullWidthTeacherCard}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-              <span style={{ fontSize: "20px" }}>📢</span>
-              <span style={{ fontSize: "13px", fontWeight: "bold", color: "#c084fc", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Transmisión de tu Profe en Vivo:
-              </span>
-            </div>
-            <p style={{ fontSize: "14px", color: "#f1f5f9", margin: 0, fontStyle: "italic", lineHeight: "1.5" }}>
-              "{teacherMessage}"
-            </p>
           </div>
         </>
       )}
@@ -3074,7 +3076,8 @@ const styles = {
   },
   rightSidebarColumn: {
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    gap: "14px"
   },
   cardBox: {
     backgroundColor: "#0f172a",
