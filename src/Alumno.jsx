@@ -634,191 +634,118 @@ const hyperspaceStyles = {
 // ==========================================
 // 🚀 NAVE ESPACIAL Y ASTRONAUTA EVOLUTIVO
 // ==========================================
-function NaveEvolutivaVisual({ misionesCompletadas, misionesDiamante, misionActual }) {
-  const getModuleStatus = (mId) => {
-    if (misionesDiamante.includes(mId)) return "diamante";
-    if (misionesCompletadas.includes(mId)) return "verde";
-    if (misionActual === mId || (mId === "m1" && misionesCompletadas.length === 0)) return "rojo";
-    return "gris";
+// 🚀 COMPONENTE 2D NAVE Y ASTRONAUTA EN EL MISMO RECUADRO
+// ==========================================
+function NaveSideBySideSvg({ misionesCompletadas, misionesDiamante, perfilAlumno, gear, onOpenCierre, allCompleted }) {
+  const isDiamante = (id) => misionesDiamante.includes(id);
+  const isDone = (id) => misionesCompletadas.includes(id);
+
+  const getColor = (id) => {
+    if (isDiamante(id)) return "#00f3ff"; // Celeste Diamante
+    if (isDone(id)) return "#10b981";    // Verde Exitoso
+    return "#334155";                     // Gris Pelada
   };
 
-  const statusM1 = getModuleStatus("m1");
-  const statusM2 = getModuleStatus("m2");
-  const statusM3 = getModuleStatus("m3");
-  const statusM4 = getModuleStatus("m4");
-
-  const getStyleForStatus = (status) => {
-    if (status === "diamante") return {
-      borderColor: "#00f3ff",
-      bgColor: "rgba(0, 243, 255, 0.2)",
-      textColor: "#00f3ff",
-      glow: "0 0 12px rgba(0, 243, 255, 0.6)",
-      label: "💎 Diamante"
-    };
-    if (status === "verde") return {
-      borderColor: "#10b981",
-      bgColor: "rgba(16, 185, 129, 0.2)",
-      textColor: "#4ade80",
-      glow: "0 0 8px rgba(16, 185, 129, 0.4)",
-      label: "🟢 Ensamblada"
-    };
-    if (status === "rojo") return {
-      borderColor: "#f87171",
-      bgColor: "rgba(248, 113, 113, 0.15)",
-      textColor: "#f87171",
-      glow: "0 0 6px rgba(248, 113, 113, 0.3)",
-      label: "🔴 En instalación"
-    };
-    return {
-      borderColor: "#334155",
-      bgColor: "rgba(15, 23, 42, 0.5)",
-      textColor: "#64748b",
-      glow: "none",
-      label: "⚪ Pendiente"
-    };
-  };
-
-  const s1 = getStyleForStatus(statusM1);
-  const s2 = getStyleForStatus(statusM2);
-  const s3 = getStyleForStatus(statusM3);
-  const s4 = getStyleForStatus(statusM4);
-
-  const isAllDiamante = misionesDiamante.length === 4;
-  const isAllCompleted = misionesCompletadas.length === 4;
+  const cM1 = getColor("m1"); // M1: Cabina
+  const cM2 = getColor("m2"); // M2: Motor
+  const cM3 = getColor("m3"); // M3: Alas / Paneles
+  const cM4 = getColor("m4"); // M4: Reactor / Núcleo
 
   return (
     <div style={{
-      backgroundColor: "#070c22",
-      border: isAllDiamante ? "2px solid #00f3ff" : "1px solid #1e293b",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: "rgba(7, 12, 34, 0.85)",
       borderRadius: "12px",
-      padding: "16px",
+      padding: "14px 18px",
+      border: allCompleted ? "2px solid #00f3ff" : "1px solid #1e293b",
+      boxShadow: allCompleted ? "0 0 25px rgba(0, 243, 255, 0.3)" : "none",
       marginBottom: "16px",
-      boxShadow: isAllDiamante ? "0 0 25px rgba(0, 243, 255, 0.4)" : "0 4px 12px rgba(0, 0, 0, 0.3)"
+      flexWrap: "wrap",
+      gap: "14px"
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "22px" }}>🚀</span>
-          <span style={{ fontSize: "14px", fontWeight: "bold", color: isAllDiamante ? "#00f3ff" : "#38bdf8", letterSpacing: "0.5px" }}>
-            ENSAMBLADO DE LA NAVE ESPACIAL Y ASTRONAUTA
-          </span>
-        </div>
-        <div style={{ fontSize: "12px", color: isAllDiamante ? "#00f3ff" : "#94a3b8", fontWeight: "bold" }}>
-          {isAllDiamante ? "💎 NAVE DIAMANTE ESTELAR COMPLETA" : isAllCompleted ? "🟢 NAVE ENSAMBLADA (Reintentá para Diamante)" : `${misionesCompletadas.length}/4 Piezas Instaladas`}
+      {/* LADO IZQUIERDO: ASTRONAUTA Y DATOS DE COMPROMISO */}
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <span style={{ fontSize: "38px", filter: "drop-shadow(0 0 8px rgba(56,189,248,0.5))" }}>{gear.avatarIcon}</span>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "18px", fontWeight: "bold", color: "#38bdf8" }}>
+              {perfilAlumno.nickname || "Explorador/a"}
+            </span>
+            <span style={{ backgroundColor: "rgba(15, 23, 42, 0.8)", border: `1px solid ${gear.badgeColor}`, color: gear.badgeColor, fontSize: "11px", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
+              {gear.rango}
+            </span>
+          </div>
+          <div style={{ fontSize: "13px", color: "#9ca3af", marginTop: "2px" }}>
+            🪖 {gear.casco} · {perfilAlumno.escuela} ({perfilAlumno.curso})
+          </div>
         </div>
       </div>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "130px 1fr",
-        gap: "16px",
-        alignItems: "center",
-        backgroundColor: "#02040e",
-        padding: "14px",
-        borderRadius: "10px",
-        border: "1px solid #1e293b"
-      }}>
-        {/* FIGURA DEL ASTRONAUTITA */}
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "rgba(15, 23, 42, 0.9)",
-          border: isAllDiamante ? "2px solid #00f3ff" : "1px solid #38bdf8",
-          borderRadius: "10px",
-          padding: "12px",
-          boxShadow: isAllDiamante ? "0 0 15px rgba(0, 243, 255, 0.5)" : "none"
-        }}>
-          <div style={{
-            fontSize: "48px",
-            filter: "drop-shadow(0 0 10px rgba(56, 189, 248, 0.6))"
-          }}>
-            👨‍🚀
-          </div>
-          <div style={{ fontSize: "11px", fontWeight: "bold", color: "#38bdf8", marginTop: "4px", textAlign: "center" }}>
-            ASTRONAUTA
-          </div>
-          <div style={{ fontSize: "10px", color: isAllDiamante ? "#00f3ff" : isAllCompleted ? "#4ade80" : "#94a3b8", fontWeight: "bold" }}>
-            {isAllDiamante ? "💎 Rango Diamante" : isAllCompleted ? "🟢 Piloto Oficial" : "👨‍🚀 Cadete"}
-          </div>
+      {/* LADO DERECHO: NAVE EN DIBUJO 2D SVG QUE SE PINTA MISION A MISION */}
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", backgroundColor: "#020617", padding: "10px 14px", borderRadius: "10px", border: "1px solid #1e293b" }}>
+        <svg width="110" height="80" viewBox="0 0 160 120" style={{ filter: allCompleted ? "drop-shadow(0 0 8px rgba(0, 243, 255, 0.7))" : "none" }}>
+          {/* M3: ALAS Y PANELES (Lados) */}
+          <path d="M 30 70 L 60 55 L 60 85 Z" fill={cM3} stroke="#64748b" strokeWidth="1.5" />
+          <path d="M 130 70 L 100 55 L 100 85 Z" fill={cM3} stroke="#64748b" strokeWidth="1.5" />
+
+          {/* M2: MOTOR Y PROPULSORES (Abajo) */}
+          <rect x="68" y="85" width="24" height="15" rx="3" fill={cM2} stroke="#64748b" strokeWidth="1.5" />
+          {cM2 !== "#334155" && (
+            <polygon points="72,100 80,115 88,100" fill={cM2 === "#00f3ff" ? "#00f3ff" : "#f59e0b"} />
+          )}
+
+          {/* FUSELAJE BASE (Gris neutro) */}
+          <path d="M 60 50 L 80 20 L 100 50 L 100 85 L 60 85 Z" fill="#1e293b" stroke="#64748b" strokeWidth="1.5" />
+
+          {/* M1: CABINA (Arriba / Cúpula) */}
+          <path d="M 68 45 C 68 30, 92 30, 92 45 Z" fill={cM1} stroke="#e2e8f0" strokeWidth="1.5" />
+
+          {/* M4: NÚCLEO Y REACTOR (Centro) */}
+          <circle cx="80" cy="68" r="10" fill={cM4} stroke="#ffffff" strokeWidth="1.5" />
+        </svg>
+
+        <div style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: "1.4" }}>
+          <div style={{ fontWeight: "bold", color: "#38bdf8", marginBottom: "2px" }}>🚀 NAVE ESPACIAL</div>
+          <div style={{ fontSize: "11px" }}>💧 M1 Cabina: <span style={{ color: cM1, fontWeight: "bold" }}>{cM1 === "#00f3ff" ? "💎 Diamante" : cM1 === "#10b981" ? "🟢 Lista" : "⚪ Gris"}</span></div>
+          <div style={{ fontSize: "11px" }}>⛽ M2 Motor: <span style={{ color: cM2, fontWeight: "bold" }}>{cM2 === "#00f3ff" ? "💎 Diamante" : cM2 === "#10b981" ? "🟢 Listo" : "⚪ Gris"}</span></div>
+          <div style={{ fontSize: "11px" }}>📡 M3 Alas: <span style={{ color: cM3, fontWeight: "bold" }}>{cM3 === "#00f3ff" ? "💎 Diamante" : cM3 === "#10b981" ? "🟢 Listas" : "⚪ Gris"}</span></div>
+          <div style={{ fontSize: "11px" }}>⚡ M4 Reactor: <span style={{ color: cM4, fontWeight: "bold" }}>{cM4 === "#00f3ff" ? "💎 Diamante" : cM4 === "#10b981" ? "🟢 Listo" : "⚪ Gris"}</span></div>
+          {allCompleted && (
+            <div style={{ fontWeight: "bold", color: "#fef08a", marginTop: "2px", fontSize: "11px" }}>
+              🏆 INSIGNIA FINAL ACTIVA
+            </div>
+          )}
         </div>
 
-        {/* MÓDULOS DE LA NAVE ENSAMBLABLE */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
-          {/* MÓDULO 1 */}
-          <div style={{
-            backgroundColor: s1.bgColor,
-            border: `1px solid ${s1.borderColor}`,
-            borderRadius: "8px",
-            padding: "8px 10px",
-            boxShadow: s1.glow
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
-              <span style={{ fontWeight: "bold", color: "#ffffff" }}>💧 Base & Agua (M1)</span>
-              <span style={{ fontSize: "10px", color: s1.textColor, fontWeight: "bold" }}>{s1.label}</span>
-            </div>
-            <div style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
-              Tanques y Válvula de Presión
-            </div>
-          </div>
-
-          {/* MÓDULO 2 */}
-          <div style={{
-            backgroundColor: s2.bgColor,
-            border: `1px solid ${s2.borderColor}`,
-            borderRadius: "8px",
-            padding: "8px 10px",
-            boxShadow: s2.glow
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
-              <span style={{ fontWeight: "bold", color: "#ffffff" }}>⛽ Combustible (M2)</span>
-              <span style={{ fontSize: "10px", color: s2.textColor, fontWeight: "bold" }}>{s2.label}</span>
-            </div>
-            <div style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
-              Módulo Bioestacional
-            </div>
-          </div>
-
-          {/* MÓDULO 3 */}
-          <div style={{
-            backgroundColor: s3.bgColor,
-            border: `1px solid ${s3.borderColor}`,
-            borderRadius: "8px",
-            padding: "8px 10px",
-            boxShadow: s3.glow
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
-              <span style={{ fontWeight: "bold", color: "#ffffff" }}>📡 Antena & Víveres (M3)</span>
-              <span style={{ fontSize: "10px", color: s3.textColor, fontWeight: "bold" }}>{s3.label}</span>
-            </div>
-            <div style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
-              Alas y Paneles Solares
-            </div>
-          </div>
-
-          {/* MÓDULO 4 */}
-          <div style={{
-            backgroundColor: s4.bgColor,
-            border: `1px solid ${s4.borderColor}`,
-            borderRadius: "8px",
-            padding: "8px 10px",
-            boxShadow: s4.glow
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
-              <span style={{ fontWeight: "bold", color: "#ffffff" }}>⚡ Reactor Estelar (M4)</span>
-              <span style={{ fontSize: "10px", color: s4.textColor, fontWeight: "bold" }}>{s4.label}</span>
-            </div>
-            <div style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
-              Propulsor de Fusión Cuántica
-            </div>
-          </div>
-        </div>
+        {allCompleted && (
+          <button
+            onClick={onOpenCierre}
+            style={{
+              padding: "8px 12px",
+              backgroundColor: "#10b981",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              fontWeight: "bold",
+              fontSize: "11px",
+              cursor: "pointer",
+              marginLeft: "8px"
+            }}
+          >
+            📝 Cierre
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 
+// ==========================================
+// 🤖 EDUBOT (COPILOTO ROBOT)
+// ==========================================
 function EduBotCopilot({ mood, message, onClickHelp, onClickQueMeEquivoque, errorWarning }) {
   return (
     <div style={botStyles.container}>
@@ -1835,41 +1762,21 @@ export default function App() {
       {/* ────────────────────────────────────────────────────────── */}
       {faseGlobal === "juego" && (
         <>
-          {/* CABECERA DE PERFIL DEL ALUMNO */}
-          <header style={styles.topHeader}>
-            {(() => {
-              const gear = getEquipamientoEvolutivo(misionesCompletadas.length);
-              return (
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "34px", filter: "drop-shadow(0 0 8px rgba(56,189,248,0.5))" }}>{gear.avatarIcon}</span>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "16px", fontWeight: "bold", color: "#38bdf8" }}>
-                        {perfilAlumno.nickname || "Explorador/a"}
-                      </span>
-                      <span style={{ backgroundColor: "rgba(15, 23, 42, 0.8)", border: `1px solid ${gear.badgeColor}`, color: gear.badgeColor, fontSize: "10px", padding: "2px 8px", borderRadius: "10px", fontWeight: "bold" }}>
-                        {gear.rango}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "2px" }}>
-                      🪖 {gear.casco} · {perfilAlumno.escuela} ({perfilAlumno.curso})
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {misionesCompletadas.length === 4 && (
-              <button
-                onClick={() => setFaseGlobal("cierre")}
-                style={styles.btnCuestionarioCierreTop}
-              >
-                📝 COMPLETAR CUESTIONARIO DE CIERRE
-              </button>
-            )}
-          </header>
-
-          <NaveEvolutivaVisual misionesCompletadas={misionesCompletadas} misionesDiamante={misionesDiamante} misionActual={misionActual} />
+          {/* CABECERA CON ASTRONAUTA Y NAVE SIDE-BY-SIDE */}
+          {(() => {
+            const gear = getEquipamientoEvolutivo(misionesCompletadas.length);
+            const allCompleted = misionesCompletadas.length === 4;
+            return (
+              <NaveSideBySideSvg
+                misionesCompletadas={misionesCompletadas}
+                misionesDiamante={misionesDiamante}
+                perfilAlumno={perfilAlumno}
+                gear={gear}
+                onOpenCierre={() => setFaseGlobal("cierre")}
+                allCompleted={allCompleted}
+              />
+            );
+          })()}
 
           {/* LÍNEA BARRA XP */}
           <div style={styles.xpCardFullWidth}>
