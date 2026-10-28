@@ -199,6 +199,261 @@ const exportToFormattedExcelWithSurveys = (filename, docentes, alumnos, valoraci
   document.body.removeChild(link);
 };
 
+
+
+function MensajesDocentesVistaAdmin () => {
+  const [todosMensajes, setTodosMensajes] = useState([]);
+  const [filtroEstado, setFiltroEstado] = useState("TODOS"); // 'TODOS' | 'PENDIENTES' | 'RESPONDIDOS'
+  const [mensajeSeleccionado, setMensajeSeleccionado] = useState(null);
+  const [textoRespuesta, setTextoRespuesta] = useState("");
+  const [respondiendo, setRespondiendo] = useState(false);
+  const [cargando, setCargando] = useState(true);
+
+  // Sincronización global con la colección 'mensajes_docentes'
+  useEffect(() => {
+    const q = collection(db, "mensajes_docentes");
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const msgs = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        }));
+        msgs.sort((a, b) => {
+          const tA = a.fechaEnvio?.seconds || 0;
+          const tB = b.fechaEnvio?.seconds || 0;
+          return tB - tA;
+        });
+        setTodosMensajes(msgs);
+        setCargando(false);
+      },
+      (error) => {
+        console.error("Error al cargar lista global de mensajes docentes:", error);
+        setCargando(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const pendientesCount = todosMensajes.filter((m) => m.estado === "pendiente").length;
+  const respondidosCount = todosMensajes.filter((m) => m.estado === "respondido").length;
+
+  const mensajesFiltrados = todosMensajes.filter((m) => {
+    if (filtroEstado === "PENDIENTES") return m.estado === "pendiente";
+    if (filtroEstado === "RESPONDIDOS") return m.estado === "respondido";
+    return true;
+  });
+
+  const handleResponder = async (e) => {
+    e.preventDefault();
+    if (!mensajeSeleccionado || !textoRespuesta.trim()) return;
+
+    setRespondiendo(true);
+    try {
+      const docRef = doc(db, "mensajes_docentes", mensajeSeleccionado.id);
+      await updateDoc(docRef, {
+        respuestaAdmin: textoRespuesta.trim(),
+        estado: "respondido",
+        fechaRespuesta: serverTimestamp(),
+        adminNombre: "Control Central EduMisión",
+        leidoPorDocente: false
+      });
+
+      setTextoRespuesta("");
+      setMensajeSeleccionado(null);
+    } catch (err) {
+      console.error("Error al responder mensaje docente:", err);
+      alert("No se pudo enviar la respuesta.");
+    } finally {
+      setRespondiendo(false);
+    }
+  };
+
+  return (
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <div>
+          <h2 style={styles.title}>
+            🏛️ Control Central — Bandeja de Mensajes Docentes
+          </h2>
+          <p style={styles.subtitle}>
+            Monitoreo y respuesta en tiempo real a las consultas de los docentes del piloto.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ backgroundColor: "#1e293b", padding: "6px 12px", borderRadius: "8px", border: "1px solid #334155", textAlign: "center" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8", fontWeight: "bold" }}>PENDIENTES</div>
+            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#fbbf24" }}>{pendientesCount}</div>
+          </div>
+          <div style={{ backgroundColor: "#1e293b", padding: "6px 12px", borderRadius: "8px", border: "1px solid #334155", textAlign: "center" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8", fontWeight: "bold" }}>RESPONDIDOS</div>
+            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#34d399" }}>{respondidosCount}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* FILTROS DE ESTADO */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+        <button
+          style={{ ...styles.filterTab, ...(filtroEstado === "TODOS" ? styles.filterTabActive : {}) }}
+          onClick={() => setFiltroEstado("TODOS")}
+        >
+          Todos ({todosMensajes.length})
+        </button>
+        <button
+          style={{ ...styles.filterTab, ...(filtroEstado === "PENDIENTES" ? styles.filterTabActive : {}) }}
+          onClick={() => setFiltroEstado("PENDIENTES")}
+        >
+          🟡 Pendientes ({pendientesCount})
+        </button>
+        <button
+          style={{ ...styles.filterTab, ...(filtroEstado === "RESPONDIDOS" ? styles.filterTabActive : {}) }}
+          onClick={() => setFiltroEstado("RESPONDIDOS")}
+        >
+          🟢 Respondidos ({respondidosCount})
+        </button>
+      </div>
+
+      <div style={styles.gridTwoCols}>
+        {/* LISTA DE MENSAJES */}
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>
+            <span>📥 Mensajes Recibidos ({mensajesFiltrados.length})</span>
+          </div>
+
+          {cargando ? (
+            <div style={{ textAlign: "center", color: "#64748b", padding: "20px" }}>
+              Cargando mensajes...
+            </div>
+          ) : mensajesFiltrados.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#64748b", padding: "30px 10px", fontSize: "12px" }}>
+              No hay mensajes en esta categoría.
+            </div>
+          ) : (
+            <div style={{ maxHeight: "480px", overflowY: "auto", paddingRight: "4px" }}>
+              {mensajesFiltrados.map((m) => {
+                const isSelected = mensajeSeleccionado?.id === m.id;
+                const fecha = m.fechaEnvio?.seconds
+                  ? new Date(m.fechaEnvio.seconds * 1000).toLocaleString("es-AR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })
+                  : "Reciente";
+
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      ...styles.messageItem,
+                      borderColor: isSelected ? "#38bdf8" : "#334155",
+                      backgroundColor: isSelected ? "rgba(56, 189, 248, 0.08)" : "#0f172a",
+                      cursor: "pointer"
+                    }}
+                    onClick={() => {
+                      setMensajeSeleccionado(m);
+                      setTextoRespuesta(m.respuestaAdmin || "");
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "12px", fontWeight: "bold", color: "#f8fafc" }}>
+                        {m.docenteNombre}
+                      </span>
+                      {m.estado === "respondido" ? (
+                        <span style={styles.badgeResponded}>🟢 Respondido</span>
+                      ) : (
+                        <span style={styles.badgePending}>🟡 Pendiente</span>
+                      )}
+                    </div>
+
+                    <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>
+                      {m.escuela} · {m.curso}
+                    </div>
+
+                    <div style={{ fontSize: "12px", fontWeight: "bold", color: "#38bdf8", marginBottom: "2px" }}>
+                      [{m.categoria}] {m.asunto}
+                    </div>
+
+                    <div style={{ fontSize: "11px", color: "#cbd5e1", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                      {m.mensaje}
+                    </div>
+
+                    <div style={{ fontSize: "10px", color: "#64748b", marginTop: "4px", textAlign: "right" }}>
+                      {fecha}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* DETALLE Y PANEL DE RESPUESTA */}
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>
+            <span>✍️ Detalle y Respuesta</span>
+          </div>
+
+          {!mensajeSeleccionado ? (
+            <div style={{ textAlign: "center", color: "#64748b", padding: "50px 20px", fontSize: "12px" }}>
+              👈 Seleccione un mensaje del listado de la izquierda para ver el detalle y responder.
+            </div>
+          ) : (
+            <div>
+              <div style={{ backgroundColor: "#0f172a", padding: "12px", borderRadius: "8px", border: "1px solid #334155", marginBottom: "16px" }}>
+                <div style={{ fontSize: "11px", color: "#38bdf8", fontWeight: "bold" }}>
+                  {mensajeSeleccionado.categoria}
+                </div>
+                <div style={{ fontSize: "14px", fontWeight: "bold", color: "#f8fafc", margin: "4px 0" }}>
+                  {mensajeSeleccionado.asunto}
+                </div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "8px" }}>
+                  De: <strong>{mensajeSeleccionado.docenteNombre}</strong> ({mensajeSeleccionado.escuela} - {mensajeSeleccionado.curso})
+                </div>
+                <div style={{ fontSize: "12px", color: "#e2e8f0", lineHeight: "1.4", whiteSpace: "pre-wrap", borderTop: "1px solid #1e293b", paddingTop: "8px" }}>
+                  {mensajeSeleccionado.mensaje}
+                </div>
+              </div>
+
+              <form onSubmit={handleResponder}>
+                <div style={styles.fieldGroup}>
+                  <label style={styles.label}>Respuesta de Control Central</label>
+                  <textarea
+                    style={{ ...styles.textarea, minHeight: "120px" }}
+                    placeholder="Escriba aquí la respuesta oficial o indicación técnica para el docente..."
+                    value={textoRespuesta}
+                    onChange={(e) => setTextoRespuesta(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  style={{
+                    ...styles.btnSend,
+                    backgroundColor: "#10b981",
+                    opacity: respondiendo || !textoRespuesta.trim() ? 0.6 : 1,
+                    cursor: respondiendo ? "wait" : "pointer"
+                  }}
+                  disabled={respondiendo || !textoRespuesta.trim()}
+                >
+                  {respondiendo ? "Guardando Respuesta..." : "🟢 Enviar Respuesta al Docente"}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem("cc_pin") === PIN_ACCESO;
@@ -951,6 +1206,11 @@ Sus ${assignedCount} alumno(s) asignado(s) volverán a 'Alumnos a designar'.`
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* SECTOR 3.5: MENSAJES Y CONSULTAS DOCENTES EN TIEMPO REAL */}
+      <section style={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: "12px", padding: "20px", marginBottom: "25px" }}>
+        <MensajesDocentesVistaAdmin />
       </section>
 
       {/* 2.a FIX: SECTOR 4: TELEMETRÍA Y RESUMEN EJECUTIVO */}
