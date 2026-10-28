@@ -201,7 +201,7 @@ const exportToFormattedExcelWithSurveys = (filename, docentes, alumnos, valoraci
 
 
 
-function MensajesDocentesVistaAdmin () => {
+function MensajesDocentesVistaAdmin() {
   const [todosMensajes, setTodosMensajes] = useState([]);
   const [filtroEstado, setFiltroEstado] = useState("TODOS"); // 'TODOS' | 'PENDIENTES' | 'RESPONDIDOS'
   const [mensajeSeleccionado, setMensajeSeleccionado] = useState(null);
