@@ -5,13 +5,16 @@ import {
   getDocs,
   onSnapshot,
   doc,
+  setDoc,
+  addDoc,
   updateDoc,
   deleteDoc,
   query,
   where,
   orderBy,
   limit,
-  writeBatch
+  writeBatch,
+  serverTimestamp
 } from "firebase/firestore";
 
 // ==========================================
@@ -445,10 +448,11 @@ function MensajesDocentesVistaAdmin() {
     setRespondiendo(true);
     try {
       const docRef = doc(db, "mensajes_docentes", mensajeSeleccionado.id);
+      const timestamp = typeof serverTimestamp === "function" ? serverTimestamp() : new Date();
       await updateDoc(docRef, {
         respuestaAdmin: textoRespuesta.trim(),
         estado: "respondido",
-        fechaRespuesta: serverTimestamp(),
+        fechaRespuesta: timestamp,
         adminNombre: "Control Central EduMisión",
         leidoPorDocente: false
       });
