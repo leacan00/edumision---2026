@@ -928,7 +928,7 @@ function GroupAnalysisModal({ students, onClose }) {
 
 
 
-function MensajesDocentesVistaDocente ({ perfilDocente = {} }) => {
+function MensajesDocentesVistaDocente({ perfilDocente = {} }) {
   const [asunto, setAsunto] = useState("");
   const [categoria, setCategoria] = useState("Soporte Técnico");
   const [mensaje, setMensaje] = useState("");
