@@ -926,6 +926,253 @@ function GroupAnalysisModal({ students, onClose }) {
   );
 }
 
+
+
+function MensajesDocentesVistaDocente ({ perfilDocente = {} }) => {
+  const [asunto, setAsunto] = useState("");
+  const [categoria, setCategoria] = useState("Soporte Técnico");
+  const [mensaje, setMensaje] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState(false);
+  const [misMensajes, setMisMensajes] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  const docenteId = perfilDocente.id || perfilDocente.docenteId || "DOC_DEMO";
+  const docenteNombre = perfilDocente.nombre || "Docente EduMisión";
+  const escuela = perfilDocente.escuela || perfilDocente.tipoEscuela || "Escuela Piloto Córdoba";
+  const curso = perfilDocente.curso || "1° Año";
+
+  // Sincronización en tiempo real con Firestore
+  useEffect(() => {
+    if (!docenteId) return;
+
+    const q = query(
+      collection(db, "mensajes_docentes"),
+      where("docenteId", "==", docenteId)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const msgs = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        }));
+        // Ordenar por fecha localmente
+        msgs.sort((a, b) => {
+          const tA = a.fechaEnvio?.seconds || 0;
+          const tB = b.fechaEnvio?.seconds || 0;
+          return tB - tA;
+        });
+        setMisMensajes(msgs);
+        setCargando(false);
+      },
+      (error) => {
+        console.error("Error al cargar mensajes docentes:", error);
+        setCargando(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [docenteId]);
+
+  const handleEnviarMensaje = async (e) => {
+    e.preventDefault();
+    if (!asunto.trim() || !mensaje.trim()) return;
+
+    setEnviando(true);
+    try {
+      await addDoc(collection(db, "mensajes_docentes"), {
+        docenteId,
+        docenteNombre,
+        escuela,
+        curso,
+        categoria,
+        asunto: asunto.trim(),
+        mensaje: mensaje.trim(),
+        fechaEnvio: serverTimestamp(),
+        estado: "pendiente", // 'pendiente' | 'en_proceso' | 'respondido'
+        respuestaAdmin: "",
+        fechaRespuesta: null,
+        adminNombre: "",
+        leidoPorDocente: true
+      });
+
+      setAsunto("");
+      setMensaje("");
+      setMensajeExito(true);
+      setTimeout(() => setMensajeExito(false), 4000);
+    } catch (err) {
+      console.error("Error al enviar mensaje:", err);
+      alert("No se pudo enviar el mensaje. Verifique su conexión.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <div>
+          <h2 style={styles.title}>
+            💬 Mensajes Docentes — Canal Directo con Control Central
+          </h2>
+          <p style={styles.subtitle}>
+            Soporte técnico, consultas pedagógicas y registro de experiencia del piloto en tiempo real.
+          </p>
+        </div>
+        <div style={{ textAlign: "right", fontSize: "11px", color: "#94a3b8" }}>
+          <div><strong>{docenteNombre}</strong></div>
+          <div>{escuela} · {curso}</div>
+        </div>
+      </div>
+
+      <div style={styles.gridTwoCols}>
+        {/* FORMULARIO DE ENVÍO */}
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>
+            <span>✏️ Redactar Consulta / Feedback</span>
+          </div>
+
+          {mensajeExito && (
+            <div style={styles.toastSuccess}>
+              ✅ ¡Mensaje enviado con éxito a Control Central! Te responderemos a la brevedad.
+            </div>
+          )}
+
+          <form onSubmit={handleEnviarMensaje}>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Categoría</label>
+              <select
+                style={styles.select}
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+              >
+                <option value="Soporte Técnico">🛠️ Soporte Técnico / Error en App</option>
+                <option value="Sugerencia Pedagógica">💡 Sugerencia Pedagógica / Contenido</option>
+                <option value="Duda de Uso">❓ Duda de Uso / Consola Docente</option>
+                <option value="Comentario General">📝 Comentario del Piloto</option>
+              </select>
+            </div>
+
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Asunto / Título Breve</label>
+              <input
+                type="text"
+                style={styles.input}
+                placeholder="Ej: Duda sobre la Misión 2 en el aula"
+                value={asunto}
+                onChange={(e) => setAsunto(e.target.value)}
+                required
+              />
+            </div>
+
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Mensaje o Observación</label>
+              <textarea
+                style={styles.textarea}
+                placeholder="Escriba aquí los detalles de su consulta, experiencia con los alumnos o inconveniente..."
+                value={mensaje}
+                onChange={(e) => setMensaje(e.target.value)}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              style={{
+                ...styles.btnSend,
+                opacity: enviando || !asunto.trim() || !mensaje.trim() ? 0.6 : 1,
+                cursor: enviando ? "wait" : "pointer"
+              }}
+              disabled={enviando || !asunto.trim() || !mensaje.trim()}
+            >
+              {enviando ? "Enviando a Control Central..." : "🚀 Enviar Mensaje a CC"}
+            </button>
+          </form>
+        </div>
+
+        {/* HISTORIAL Y RESPUESTAS */}
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>
+            <span>📋 Mis Mensajes e Historial ({misMensajes.length})</span>
+          </div>
+
+          {cargando ? (
+            <div style={{ textAlign: "center", color: "#64748b", padding: "20px" }}>
+              Cargando mensajes...
+            </div>
+          ) : misMensajes.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#64748b", padding: "30px 10px", fontSize: "12px" }}>
+              📭 Aún no ha enviado mensajes a Control Central.<br />
+              Utilice el formulario de la izquierda para comunicarse con el equipo.
+            </div>
+          ) : (
+            <div style={{ maxHeight: "400px", overflowY: "auto", paddingRight: "4px" }}>
+              {misMensajes.map((m) => {
+                const fecha = m.fechaEnvio?.seconds
+                  ? new Date(m.fechaEnvio.seconds * 1000).toLocaleString("es-AR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })
+                  : "Reciente";
+
+                return (
+                  <div key={m.id} style={styles.messageItem}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+                      <span style={{ fontSize: "11px", color: "#38bdf8", fontWeight: "bold" }}>
+                        [{m.categoria}]
+                      </span>
+                      {m.estado === "respondido" ? (
+                        <span style={styles.badgeResponded}>🟢 Respondido</span>
+                      ) : m.estado === "en_proceso" ? (
+                        <span style={styles.badgeInProcess}>🔵 En Revisión</span>
+                      ) : (
+                        <span style={styles.badgePending}>🟡 Pendiente</span>
+                      )}
+                    </div>
+
+                    <div style={{ fontSize: "13px", fontWeight: "bold", color: "#f1f5f9", marginBottom: "4px" }}>
+                      {m.asunto}
+                    </div>
+
+                    <div style={{ fontSize: "12px", color: "#cbd5e1", lineHeight: "1.4", whiteSpace: "pre-wrap" }}>
+                      {m.mensaje}
+                    </div>
+
+                    <div style={{ fontSize: "10px", color: "#64748b", marginTop: "6px", textAlign: "right" }}>
+                      Enviado: {fecha}
+                    </div>
+
+                    {/* RESPUESTA DEL ADMINISTRADOR DE CONTROL CENTRAL */}
+                    {m.respuestaAdmin && (
+                      <div style={styles.replyBox}>
+                        <div style={{ fontWeight: "bold", color: "#38bdf8", marginBottom: "4px", fontSize: "11px" }}>
+                          🏛️ Respuesta de Control Central ({m.adminNombre || "Equipo EduMisión"}):
+                        </div>
+                        <div style={{ color: "#e2e8f0", lineHeight: "1.4", whiteSpace: "pre-wrap" }}>
+                          {m.respuestaAdmin}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =========================================================================
+// 2️⃣ COMPONENTE: VISTA ADMINISTRADOR (Control Central)
+// =========================================================================
+
+
 export default function App() {
   const [docenteId, setDocenteId] = useState(() => {
     if (typeof window !== "undefined") {
@@ -1320,6 +1567,7 @@ export default function App() {
                 📊 ANÁLISIS GRUPAL 360°
               </button>
 
+              <button onClick={() => setFaseDocente("mensajes")} style={{ ...styles.btnValoracionTop, backgroundColor: "rgba(56, 189, 248, 0.2)", borderColor: "#38bdf8", color: "#38bdf8" }}>💬 MENSAJES DOCENTES</button>
               <button onClick={() => setFaseDocente("evaluacion")} style={styles.btnValoracionTop}>
                 📝 VALORAR CONSOLA
               </button>
@@ -1582,6 +1830,17 @@ export default function App() {
       )}
 
       {/* 3. CUESTIONARIO FINAL DE VALORACIÓN Y EVALUACIÓN DOCENTE (1.f FIX) */}
+      {faseDocente === "mensajes" && (
+        <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "20px" }}>
+          <div style={{ marginBottom: "16px" }}>
+            <button onClick={() => setFaseDocente("panel")} style={styles.btnCancelDocente}>
+              ⬅️ Volver a la Consola de Monitoreo
+            </button>
+          </div>
+          <MensajesDocentesVistaDocente perfilDocente={perfilDocente} />
+        </div>
+      )}
+
       {faseDocente === "evaluacion" && (
         <div style={styles.cardBoxIngreso}>
           <div style={{ fontSize: "52px", marginBottom: "8px", textAlign: "center" }}>📝</div>
