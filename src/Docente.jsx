@@ -13,6 +13,195 @@ import {
 } from "firebase/firestore";
 
 const styles = {
+
+  // === MENSAJES DOCENTES EXTRA STYLES ===
+  container: {
+    backgroundColor: "#0f172a",
+    color: "#f8fafc",
+    borderRadius: "12px",
+    padding: "20px",
+    border: "1px solid #334155",
+    fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    maxWidth: "900px",
+    margin: "0 auto",
+    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)"
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottom: "1px solid #334155",
+    paddingBottom: "14px",
+    marginBottom: "20px"
+  },
+  title: {
+    fontSize: "18px",
+    fontWeight: "bold",
+    color: "#38bdf8",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    margin: 0
+  },
+  subtitle: {
+    fontSize: "12px",
+    color: "#94a3b8",
+    marginTop: "4px"
+  },
+  gridTwoCols: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1.2fr",
+    gap: "20px"
+  },
+  card: {
+    backgroundColor: "#1e293b",
+    borderRadius: "10px",
+    padding: "16px",
+    border: "1px solid #334155"
+  },
+  cardTitle: {
+    fontSize: "14px",
+    fontWeight: "bold",
+    color: "#f1f5f9",
+    marginBottom: "12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  fieldGroup: {
+    marginBottom: "12px"
+  },
+  label: {
+    display: "block",
+    fontSize: "11px",
+    fontWeight: "bold",
+    color: "#94a3b8",
+    marginBottom: "4px",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px"
+  },
+  input: {
+    width: "100%",
+    padding: "10px 12px",
+    backgroundColor: "#0f172a",
+    border: "1px solid #334155",
+    borderRadius: "6px",
+    color: "#f8fafc",
+    fontSize: "13px",
+    outline: "none",
+    boxSizing: "border-box"
+  },
+  select: {
+    width: "100%",
+    padding: "10px 12px",
+    backgroundColor: "#0f172a",
+    border: "1px solid #334155",
+    borderRadius: "6px",
+    color: "#f8fafc",
+    fontSize: "13px",
+    outline: "none",
+    boxSizing: "border-box",
+    cursor: "pointer"
+  },
+  textarea: {
+    width: "100%",
+    padding: "10px 12px",
+    backgroundColor: "#0f172a",
+    border: "1px solid #334155",
+    borderRadius: "6px",
+    color: "#f8fafc",
+    fontSize: "13px",
+    outline: "none",
+    minHeight: "100px",
+    resize: "vertical",
+    boxSizing: "border-box",
+    fontFamily: "inherit"
+  },
+  btnSend: {
+    width: "100%",
+    padding: "12px",
+    backgroundColor: "#0284c7",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: "bold",
+    fontSize: "13px",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    transition: "all 0.2s ease"
+  },
+  badgePending: {
+    backgroundColor: "rgba(245, 158, 11, 0.2)",
+    color: "#fbbf24",
+    border: "1px solid #f59e0b",
+    padding: "2px 8px",
+    borderRadius: "12px",
+    fontSize: "10px",
+    fontWeight: "bold"
+  },
+  badgeResponded: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    color: "#34d399",
+    border: "1px solid #10b981",
+    padding: "2px 8px",
+    borderRadius: "12px",
+    fontSize: "10px",
+    fontWeight: "bold"
+  },
+  badgeInProcess: {
+    backgroundColor: "rgba(56, 189, 248, 0.2)",
+    color: "#38bdf8",
+    border: "1px solid #0284c7",
+    padding: "2px 8px",
+    borderRadius: "12px",
+    fontSize: "10px",
+    fontWeight: "bold"
+  },
+  messageItem: {
+    backgroundColor: "#0f172a",
+    border: "1px solid #334155",
+    borderRadius: "8px",
+    padding: "12px",
+    marginBottom: "10px",
+    transition: "border-color 0.2s ease"
+  },
+  replyBox: {
+    marginTop: "10px",
+    backgroundColor: "rgba(2, 132, 199, 0.1)",
+    borderLeft: "3px solid #38bdf8",
+    padding: "10px 12px",
+    borderRadius: "0 6px 6px 0",
+    fontSize: "12px"
+  },
+  toastSuccess: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    border: "1px solid #10b981",
+    color: "#34d399",
+    padding: "10px",
+    borderRadius: "6px",
+    fontSize: "12px",
+    marginBottom: "12px",
+    textAlign: "center"
+  },
+  filterTab: {
+    padding: "6px 12px",
+    borderRadius: "6px",
+    fontSize: "11px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    border: "1px solid #334155",
+    backgroundColor: "#0f172a",
+    color: "#94a3b8"
+  },
+  filterTabActive: {
+    backgroundColor: "#0284c7",
+    color: "#ffffff",
+    borderColor: "#38bdf8"
+  },
+
   alertBadge: {
     fontSize: "10px",
     backgroundColor: "#1e293b",
